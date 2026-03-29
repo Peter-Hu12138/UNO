@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <unistd.h>
 
 int buffered_write(int fd, void * buffer, int size){
 	char * buf = (char *) buffer;
@@ -53,30 +54,36 @@ int write_in_chunks(int fd, const char *arg, ...){
 		len++;
 		arg_ptr = va_arg(ap, char *); 
 	}
+	va_end(ap);
 	
 	int len_n = htonl(len);
 	fprintf(stderr, "DEBUG write_in_chunks: num_chunks=%d\n", len);
 	if (buffered_write(fd, &len_n, sizeof(int)) == 1) {
 		return 1;
 	}
+	fprintf(stderr, "DEBUG write_in_chunks: wrote num_chunks, starting chunk loop\n");
 	va_start(ap, arg);
+	arg_ptr = arg;
 	for (int i = 0; i < len; i++) {
-		arg_ptr = va_arg(ap, char *);
+		if (i != 0) arg_ptr = va_arg(ap, char *);
 		int chunk_len = strlen(arg_ptr) + 1;
 		fprintf(stderr, "DEBUG write_in_chunks: chunk %d, len=%d, data=%s\n", i, chunk_len, arg_ptr);
 		int chunk_len_n = htonl(chunk_len);
 		fprintf(stderr, "DEBUG child: before buffered_write chunk_len_n\n");
 		if (buffered_write(fd, &chunk_len_n, sizeof(int)) == 1) {
+			va_end(ap);
 			fprintf(stderr, "DEBUG child: buffered_write chunk_len returned 1\n");
 			return 1;
 		}
 		fprintf(stderr, "DEBUG child: buffered_write chunk_len succeeded\n");
 		if (buffered_write(fd, arg_ptr, chunk_len) == 1) {
+			va_end(ap);
 			fprintf(stderr, "DEBUG child: buffered_write chunk_data returned 1\n");
 			return 1;
 		}
 		fprintf(stderr, "DEBUG child: buffered_write chunk_data succeeded\n");
 	}
+	va_end(ap);
 	return 0;
 }
 
@@ -94,6 +101,10 @@ int read_in_chunks(int fd, read_data* data) {
 	for (int i = 0; i < len_h; i++) {
 		int chunk_len;
 		if (buffered_read(fd, &chunk_len, sizeof(int)) == 1) {
+			for (int j = 0; j < i; j++) {
+                		free(data->data[j]);
+            		}
+            		free(data->data);
 			fprintf(stderr, "DEBUG read_in_chunks: chunk %d buffered_read returned 1\n", i);
 			return 1;
 		}
@@ -101,6 +112,11 @@ int read_in_chunks(int fd, read_data* data) {
 		fprintf(stderr, "DEBUG read_in_chunks: chunk %d len=%d\n", i, chunk_len_h);
 		char * chunk = malloc(sizeof(char) * chunk_len_h);
 		if (buffered_read(fd, chunk, chunk_len_h) == 1) {
+			free(chunk);
+            		for (int j = 0; j < i; j++) {
+                		free(data->data[j]);
+            		}
+            		free(data->data);
 			return 1;
 		}
 		data->data[i] = chunk;

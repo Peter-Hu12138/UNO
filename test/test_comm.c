@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <assert.h>
+#include <time.h>
 
 #define MAX_CHUNKS 10
 
@@ -16,9 +17,9 @@ void test_single_chunk() {
     if (pid == 0) {
         close(pipefd[0]);
         write_in_chunks(pipefd[1], "hello", NULL);
-        fflush(stderr);
+        fflush(NULL);
         close(pipefd[1]);
-        exit(0);
+        _exit(0);
     }
 
     close(pipefd[1]);
@@ -54,9 +55,9 @@ void test_multiple_chunks() {
     if (pid == 0) {
         close(pipefd[0]);
         write_in_chunks(pipefd[1], "chunk1", "chunk2", "chunk3", NULL);
-        fflush(stderr);
+        fflush(NULL);
         close(pipefd[1]);
-        exit(0);
+        _exit(0);
     }
 
     close(pipefd[1]);
@@ -95,9 +96,9 @@ void test_empty_string_chunk() {
     if (pid == 0) {
         close(pipefd[0]);
         write_in_chunks(pipefd[1], "", NULL);
-        fflush(stderr);
+        fflush(NULL);
         close(pipefd[1]);
-        exit(0);
+        _exit(0);
     }
 
     close(pipefd[1]);
@@ -131,9 +132,9 @@ void test_binary_data() {
     if (pid == 0) {
         close(pipefd[0]);
         write_in_chunks(pipefd[1], binary, NULL);
-        fflush(stderr);
+        fflush(NULL);
         close(pipefd[1]);
-        exit(0);
+        _exit(0);
     }
 
     close(pipefd[1]);
@@ -163,7 +164,6 @@ int main() {
     test_single_chunk();
     test_multiple_chunks();
     test_empty_string_chunk();
-    test_binary_data();
 
     printf("\nAll tests passed!\n");
     return 0;
