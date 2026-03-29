@@ -1,10 +1,7 @@
 #ifndef _SERVER
 #define _SERVER
 
-#ifndef _PROTOCOL
-#define PROTOCOL
 #include "protocol.h"
-#endif
 
 
 typedef struct {
