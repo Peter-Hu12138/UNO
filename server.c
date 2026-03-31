@@ -18,6 +18,7 @@
 
 #include "communication.h"
 #include "game_entities.h"
+#include "server_handlers.h"
 
 static GameState g;
 static int listen_fd = -1;
@@ -58,33 +59,41 @@ static void append_player(Player* p) {
   g.player_count++;
 }
 
-static void broadcast_to_all(const char* type, const char* text) {
-  if (g.players == NULL || g.player_count <= 0) {
+
+static void process_client_command(Player* p, const read_data* msg) {
+  if (p == NULL || msg == NULL || msg->num_chunks <= 0 || msg->data == NULL || msg->data[0] == NULL) {
+    if (p != NULL) {
+      send_error_fd(p->sock_fd, "Invalid command packet");
+    }
     return;
   }
 
-  Player* p = g.players;
-  for (int i = 0; i < g.player_count; i++) {
-    if (p->connected && p->sock_fd >= 0) {
-      (void)write_in_chunks(p->sock_fd, type, text, NULL);
-    }
-    p = p->next;
+  const char* cmd = msg->data[0];
+
+  if (strcmp(cmd, "start") == 0) {
+    handle_msg_start(&g, p, msg);
   }
-}
-
-static void process_client_command(int client_fd, const read_data* msg) {
-  (void)client_fd;
-  (void)msg;
-
-  /*
-   * TODO:
-   * Parse command chunks from msg->data and route to game_entities APIs:
-   * - game_start
-   * - game_play_card
-   * - game_deal_cards
-   * - game_advance_turn
-   * - game_remove_disconnected_players
-   */
+  else if (strcmp(cmd, "play") == 0) {
+    handle_msg_play(&g, p, msg);
+  }
+  else if (strcmp(cmd, "draw") == 0) {
+    handle_msg_draw(&g, p, msg);
+  }
+  else if (strcmp(cmd, "pass") == 0) {
+    handle_msg_pass(&g, p, msg);
+  }
+  else if (strcmp(cmd, "uno") == 0) {
+    handle_msg_uno(&g, p, msg);
+  }
+  else if (strcmp(cmd, "callout") == 0) {
+    handle_msg_callout(&g, p, msg);
+  }
+  else if (strcmp(cmd, "chat") == 0) {
+    handle_msg_chat_send(&g, p, msg);
+  }
+  else {
+    send_error_fd(p->sock_fd, "Unknown command");
+  }
 }
 
 
@@ -185,8 +194,9 @@ int main(int argc, char* argv[]) {
         if (slot < 0) {
           (void)write_in_chunks(cfd, "ERROR", "Game is full", NULL);
           close(cfd);
-        } else {
-          Player* p = (Player*) malloc(sizeof(Player));
+        }
+        else {
+          Player* p = (Player*)malloc(sizeof(Player));
 
           if (p == NULL) {
             (void)write_in_chunks(cfd, "ERROR", "Server memory error", NULL);
@@ -200,8 +210,7 @@ int main(int argc, char* argv[]) {
           append_player(p);
 
           client_fds[slot] = cfd;
-          printf("[Server] Connection in slot %d (fd=%d)\n", slot, cfd);
-          broadcast_to_all("INFO", "A player joined the server");
+          broadcast_to_all(&g, "INFO", "A player joined the server");
         }
       }
     }
@@ -212,20 +221,23 @@ int main(int argc, char* argv[]) {
         continue;
       }
 
-      read_data msg = {0};
+      read_data msg = { 0 };
       // on read error
+      Player* p = find_player_by_fd(client_fds[i]);
       if (read_in_chunks(client_fds[i], &msg) == 1) {
-        Player* p = find_player_by_fd(client_fds[i]);
         if (p != NULL) {
           p->connected = 0;
         }
         close(client_fds[i]);
         client_fds[i] = -1;
         free_read_data(&msg);
+        
+        game_remove_disconnected_players();
+        broadcast_to_all(&g, "INFO", "A player left the server");
         continue;
       }
 
-      process_client_command(client_fds[i], &msg);
+      process_client_command(p, &msg);
       free_read_data(&msg);
     }
   }

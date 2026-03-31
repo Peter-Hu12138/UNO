@@ -1,3 +1,6 @@
+#ifndef GAME_ENTITIES_H
+#define GAME_ENTITIES_H
+
 #include <stdint.h>
 
 /* ═══════════════════════════════════════════════════════════
@@ -105,3 +108,5 @@ void game_advance_turn(GameState* g);
 /* Build deck, deal hands, flip first card, set first player.
  * Returns the first-card effect so server can notify. */
 void game_start(GameState* g, Player* players, int player_cnt);
+
+#endif
