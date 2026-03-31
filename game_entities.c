@@ -409,22 +409,10 @@ void game_start(GameState* g, Player* players, int player_cnt) {
   }
 
   Player* first_player = g->players;
-  int found_first = 0;
-  for (int i = 0; i < g->player_count; i++) {
-    if (first_player->connected) {
-      found_first = 1;
-      break;
-    }
-    first_player = first_player->next;
-  }
-  if (!found_first) {
-    g->current_player_id = -1;
-    g->game_over = 1;
-    return;
-  }
 
   g->current_player_id = first_player->id;
 
+  // deal initial hand
   Player* p = g->players;
   for (int n = 0; n < g->player_count; n++) {
     if (p->connected) {
@@ -438,13 +426,15 @@ void game_start(GameState* g, Player* players, int player_cnt) {
     p = p->next;
   }
 
+  // prevent first card being wild
   Card first;
   do {
     first = draw_one(g);
-  } while (first.value == CARD_WILD4);
+  } while (first.value == CARD_WILD4 || first.value == CARD_WILD);
 
   discard_push(g, first);
 
+  // apply the first card effect to first player if special card is drawn
   if (first.value == CARD_REVERSE) {
     g->direction = -g->direction;
     if (connected_count(g) == 2) {
@@ -454,8 +444,8 @@ void game_start(GameState* g, Player* players, int player_cnt) {
   else if (first.value == CARD_SKIP) {
     g->current_player_id = first_player->next->id;
   }
-  else if (first.value == CARD_DRAW2 || first.value == CARD_WILD4) {
-    (void)game_deal_cards(g, first_player->id, (first.value == CARD_DRAW2) ? 2 : 4);
+  else if (first.value == CARD_DRAW2) {
+    game_deal_cards(g, first_player->id, 2);
     g->current_player_id = first_player->next->id;
   }
 
