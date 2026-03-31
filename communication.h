@@ -8,5 +8,8 @@ typedef struct read_format {
 // the var list must be null terminated
 int write_in_chunks(int fd, const char *arg, ...);
 int read_in_chunks(int fd, read_data* data);
+void free_read_data(read_data* data);
 
 #endif
+
+#define DEFAULT_PORT 55555

@@ -123,3 +123,16 @@ int read_in_chunks(int fd, read_data* data) {
 	}
 	return 0;
 }
+
+void free_read_data(read_data* data) {
+  if (data == NULL || data->data == NULL) {
+    return;
+  }
+
+  for (int i = 0; i < data->num_chunks; i++) {
+    free(data->data[i]);
+  }
+  free(data->data);
+  data->data = NULL;
+  data->num_chunks = 0;
+}
