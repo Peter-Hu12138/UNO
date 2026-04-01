@@ -83,6 +83,9 @@ typedef struct {
  /* Zero out the entire Game struct, set defaults */
 void game_init(GameState* g);
 
+/* find a player by id */
+Player* game_find_player(GameState* g, int pid);
+
 /* Build + shuffle a standard 108-card UNO deck */
 void game_build_deck(GameState* g);
 

@@ -14,5 +14,6 @@ void handle_msg_pass(GameState* g, Player* player, const read_data* msg);
 void handle_msg_uno(GameState* g, Player* player, const read_data* msg);
 void handle_msg_callout(GameState* g, Player* player, const read_data* msg);
 void handle_msg_chat_send(GameState* g, Player* player, const read_data* msg);
+void handle_msg_status(GameState* g, Player* player, const read_data* msg);
 
 #endif

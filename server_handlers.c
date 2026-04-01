@@ -46,6 +46,48 @@ static uint8_t parse_color_or_default(const char* s, uint8_t fallback) {
   return fallback;
 }
 
+static char* cards_to_string(const Card* cards, int count) {
+  if (cards == NULL || count <= 0) {
+    char* out = (char*)malloc(1);
+    if (out != NULL) {
+      out[0] = '\0';
+    }
+    return out;
+  }
+
+  size_t cap = (size_t)count * 16 + 1;
+  char* out = (char*)malloc(cap);
+  if (out == NULL) {
+    return NULL;
+  }
+
+  out[0] = '\0';
+  size_t used = 0;
+  for (int i = 0; i < count; i++) {
+    char one[32];
+    (void)snprintf(one, sizeof(one), "%d,%d,%d",
+      (int)cards[i].color,
+      (int)cards[i].value,
+      (int)cards[i].wild_actual_color);
+
+    size_t one_len = strlen(one);
+    if (used + one_len + 2 > cap) {
+      free(out);
+      return NULL;
+    }
+
+    if (i > 0) {
+      out[used++] = ';';
+      out[used] = '\0';
+    }
+
+    memcpy(out + used, one, one_len + 1);
+    used += one_len;
+  }
+
+  return out;
+}
+
 /* ============================================================
  *  Private Helpers: Outbound Messaging
  * ============================================================ */
@@ -262,4 +304,87 @@ void handle_msg_chat_send(GameState* g, Player* player, const read_data* msg) {
   char out[OUT_MSG_SIZE];
   snprintf(out, sizeof(out), "%s: %s", player->name, msg->data[1]);
   broadcast_to_all(g, "CHAT", out);
+}
+
+void handle_msg_status(GameState* g, Player* player, const read_data* msg) {
+  (void)msg;
+  if (g == NULL || player == NULL || !player->connected || player->sock_fd < 0) {
+    return;
+  }
+
+  char game_started[16];
+  char game_over[16];
+  char current_player_id[16];
+  char direction[16];
+  char draw_top_idx[16];
+  char discard_top_idx[16];
+  char player_count[16];
+  char effect_applied[16];
+
+  (void)snprintf(game_started, sizeof(game_started), "%d", g->game_started);
+  (void)snprintf(game_over, sizeof(game_over), "%d", g->game_over);
+  (void)snprintf(current_player_id, sizeof(current_player_id), "%d", g->current_player_id);
+  (void)snprintf(direction, sizeof(direction), "%d", g->direction);
+  (void)snprintf(draw_top_idx, sizeof(draw_top_idx), "%d", g->draw_top_idx);
+  (void)snprintf(discard_top_idx, sizeof(discard_top_idx), "%d", g->discard_top_idx);
+  (void)snprintf(player_count, sizeof(player_count), "%d", g->player_count);
+  (void)snprintf(effect_applied, sizeof(effect_applied), "%d", g->effect_applied);
+
+  char* draw_cards = cards_to_string(g->draw_pile, g->draw_top_idx + 1);
+  char* discard_cards = cards_to_string(g->discard_pile, g->discard_top_idx + 1);
+
+  if (draw_cards == NULL || discard_cards == NULL) {
+    send_error_fd(player->sock_fd, "Failed to build state payload");
+    goto cleanup_state_strings;
+  }
+
+  (void)write_in_chunks(
+    player->sock_fd,
+    "STATE_UPDATE",
+    "GAME",
+    game_started,
+    game_over,
+    current_player_id,
+    direction,
+    draw_top_idx,
+    discard_top_idx,
+    draw_cards,
+    discard_cards,
+    player_count,
+    effect_applied,
+    NULL
+  );
+
+  Player* p = g->players;
+  for (int i = 0; i < g->player_count && p != NULL; i++) {
+    char pid[16];
+    char hand_count[16];
+
+    (void)snprintf(pid, sizeof(pid), "%d", p->id);
+    (void)snprintf(hand_count, sizeof(hand_count), "%d", p->hand_count);
+
+    char* hand_cards = cards_to_string(p->hand, p->hand_count);
+    if (hand_cards == NULL) {
+      send_error_fd(player->sock_fd, "Failed to build player payload");
+      break;
+    }
+
+    (void)write_in_chunks(
+      player->sock_fd,
+      "STATE_UPDATE",
+      "PLAYER",
+      pid,
+      p->name,
+      hand_cards,
+      hand_count,
+      NULL
+    );
+
+    free(hand_cards);
+    p = p->next;
+  }
+
+cleanup_state_strings:
+  free(draw_cards);
+  free(discard_cards);
 }

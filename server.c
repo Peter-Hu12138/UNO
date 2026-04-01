@@ -69,27 +69,40 @@ static void process_client_command(Player* p, const read_data* msg) {
   }
 
   const char* cmd = msg->data[0];
-
-  if (strcmp(cmd, "start") == 0) {
+  /*
+  for each client command
+  CMD_START
+  CMD_PLAY
+  CMD_DRAW
+  CMD_PASS
+  CMD_UNO
+  CMD_CALLOUT
+  CMD_CHAT
+  CMD_STATUS
+  */
+  if (strcmp(cmd, "MSG_START") == 0) {
     handle_msg_start(&g, p, msg);
   }
-  else if (strcmp(cmd, "play") == 0) {
+  else if (strcmp(cmd, "MSG_PLAY") == 0) {
     handle_msg_play(&g, p, msg);
   }
-  else if (strcmp(cmd, "draw") == 0) {
+  else if (strcmp(cmd, "MSG_DRAW") == 0) {
     handle_msg_draw(&g, p, msg);
   }
-  else if (strcmp(cmd, "pass") == 0) {
+  else if (strcmp(cmd, "MSG_PASS") == 0) {
     handle_msg_pass(&g, p, msg);
   }
-  else if (strcmp(cmd, "uno") == 0) {
+  else if (strcmp(cmd, "MSG_UNO") == 0) {
     handle_msg_uno(&g, p, msg);
   }
-  else if (strcmp(cmd, "callout") == 0) {
+  else if (strcmp(cmd, "MSG_CALLOUT") == 0) {
     handle_msg_callout(&g, p, msg);
   }
-  else if (strcmp(cmd, "chat") == 0) {
+  else if (strcmp(cmd, "MSG_CHAT") == 0) {
     handle_msg_chat_send(&g, p, msg);
+  }
+  else if (strcmp(cmd, "MSG_STATUS") == 0) {
+    handle_msg_status(&g, p, msg);
   }
   else {
     send_error_fd(p->sock_fd, "Unknown command");
@@ -191,8 +204,8 @@ int main(int argc, char* argv[]) {
           }
         }
 
-        if (slot < 0) {
-          (void)write_in_chunks(cfd, "ERROR", "Game is full", NULL);
+        if (slot < 0 || g.game_started) {
+          (void)write_in_chunks(cfd, "ERROR", "Game is full / already started", NULL);
           close(cfd);
         }
         else {
@@ -206,6 +219,9 @@ int main(int argc, char* argv[]) {
 
           p->sock_fd = cfd;
           p->id = slot;
+          char id_str[16];
+          snprintf(id_str, sizeof(id_str), "%d", slot);
+          (void)write_in_chunks(cfd, "ID", id_str, NULL);
           p->connected = 1;
           append_player(p);
 
@@ -215,7 +231,7 @@ int main(int argc, char* argv[]) {
       }
     }
 
-    /* Read chunked messages from ready clients. */
+    /* Read chunked messages from joined clients. */
     for (int i = 0; i < MAX_PLAYERS; i++) {
       if (client_fds[i] < 0 || !FD_ISSET(client_fds[i], &rset)) {
         continue;

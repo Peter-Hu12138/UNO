@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <stdio.h>
 
 #include "game_entities.h"
 
@@ -21,22 +22,6 @@ static void shuffle_cards(Card* pile, int n) {
     pile[i] = pile[j];
     pile[j] = temp;
   }
-}
-
-/* Return the player node for pid, or NULL if not found. */
-static Player* find_player(GameState* g, int pid) {
-  if (g->players == NULL || g->player_count <= 0) {
-    return NULL;
-  }
-
-  Player* p = g->players;
-  for (int i = 0; i < g->player_count; i++) {
-    if (p->id == pid) {
-      return p;
-    }
-    p = p->next;
-  }
-  return NULL;
 }
 
 /* Count currently connected players. */
@@ -108,6 +93,22 @@ void game_init(GameState* g) {
   g->effect_applied = 0;
 }
 
+/* Return the player node for pid, or NULL if not found. */
+Player* game_find_player(GameState* g, int pid) {
+  if (g->players == NULL || g->player_count <= 0) {
+    return NULL;
+  }
+
+  Player* p = g->players;
+  for (int i = 0; i < g->player_count; i++) {
+    if (p->id == pid) {
+      return p;
+    }
+    p = p->next;
+  }
+  return NULL;
+}
+
 /* Build and shuffle a standard UNO deck into draw_pile. */
 void game_build_deck(GameState* g) {
   int idx = 0;
@@ -131,7 +132,7 @@ void game_build_deck(GameState* g) {
 
 /* Remove one card from pid hand by index and compact the array. */
 Card game_remove_card(GameState* g, int pid, int idx) {
-  Player* p = find_player(g, pid);
+  Player* p = game_find_player(g, pid);
   if (p == NULL || idx < 0 || idx >= p->hand_count) {
     Card invalid = { COLOR_WILD, CARD_WILD, COLOR_RED };
     return invalid;
@@ -147,7 +148,7 @@ Card game_remove_card(GameState* g, int pid, int idx) {
 
 /* Deal count cards to a player from the deck cursor. */
 int game_deal_cards(GameState* g, int pid, int count) {
-  Player* p = find_player(g, pid);
+  Player* p = game_find_player(g, pid);
   if (p == NULL || count <= 0) {
     return 0;
   }
@@ -217,7 +218,7 @@ int game_play_card(GameState* g, int pid, int card_idx, uint8_t wild_color) {
     return 0;
   }
 
-  Player* p = find_player(g, pid);
+  Player* p = game_find_player(g, pid);
   if (p == NULL || !p->connected) {
     return 0;
   }
@@ -321,7 +322,7 @@ void game_remove_disconnected_players(GameState* g) {
     return;
   }
 
-  Player* cur = find_player(g, g->current_player_id);
+  Player* cur = game_find_player(g, g->current_player_id);
   if (cur == NULL || !cur->connected) {
     Player* start = g->players;
     Player* t = start;
@@ -351,7 +352,7 @@ void game_remove_disconnected_players(GameState* g) {
  * - Draw2/Wild4 forces next player to draw, then skips them
  */
 void game_advance_turn(GameState* g) {
-  Player* current = find_player(g, g->current_player_id);
+  Player* current = game_find_player(g, g->current_player_id);
 
   int steps = 1;
   // apply effect when there is a discarded card and 
@@ -451,3 +452,4 @@ void game_start(GameState* g, Player* players, int player_cnt) {
 
   g->effect_applied = 1;
 }
+

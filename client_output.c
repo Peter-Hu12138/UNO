@@ -5,31 +5,8 @@
 #include <ctype.h>
 
 #include "game_entities.h"
+#include "client_output.h"
 
-/* ═══════════════════════════════════════════════════════════
- *  ANSI Color Codes
- * ═══════════════════════════════════════════════════════════ */
-
-#define RESET       "\033[0m"
-#define BOLD        "\033[1m"
-#define DIM         "\033[2m"
-
- /* Card background colors */
-#define BG_RED      "\033[41m\033[97m"   /* white text on red   */
-#define BG_BLUE     "\033[44m\033[97m"   /* white text on blue  */
-#define BG_GREEN    "\033[42m\033[97m"   /* white text on green */
-#define BG_YELLOW   "\033[43m\033[30m"   /* black text on yellow*/
-#define BG_WILD     "\033[45m\033[97m"   /* white text on magenta */
-
-/* Text colors */
-#define FG_RED      "\033[91m"
-#define FG_BLUE     "\033[94m"
-#define FG_GREEN    "\033[92m"
-#define FG_YELLOW   "\033[93m"
-#define FG_MAGENTA  "\033[95m"
-#define FG_CYAN     "\033[96m"
-#define FG_WHITE    "\033[97m"
-#define FG_GRAY     "\033[90m"
 
 // ========= printing
 static void print_prompt() {
@@ -89,6 +66,20 @@ char* color_name(uint8_t c) {
   case COLOR_WILD:   return "Wild";
   default:           return "???";
   }
+}
+static inline const char* value_name(uint8_t v) {
+  static const char* t[] = {
+      "0","1","2","3","4","5","6","7","8","9",
+      "Skip","Reverse","+2","Wild","Wild+4"
+  };
+  return (v <= CARD_WILD4) ? t[v] : "???";
+}
+static inline const char* short_value(uint8_t v) {
+  static const char* t[] = {
+      " 0"," 1"," 2"," 3"," 4"," 5"," 6"," 7"," 8"," 9",
+      "Sk","Re","+2"," W","+4"
+  };
+  return (v <= CARD_WILD4) ? t[v] : "??";
 }
 
 /* Print a colored card inline: e.g. [Red 5] with background color */

@@ -15,13 +15,16 @@
 
 typedef enum {
   CMD_NONE,           /* empty / whitespace-only input      */
+  
+  CMD_START,          /* start                              */
   CMD_PLAY,           /* play <index> [color]               */
   CMD_DRAW,           /* draw                               */
   CMD_PASS,           /* pass                               */
   CMD_UNO,            /* uno                                */
   CMD_CALLOUT,        /* callout <name>                     */
   CMD_CHAT,           /* chat <message>                     */
-  CMD_START,          /* start                              */
+  CMD_STATUS,         /* status */
+
   CMD_HELP,           /* help / h                           */
   CMD_INVALID         /* unrecognized command               */
 } CmdType;
