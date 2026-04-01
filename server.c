@@ -252,8 +252,13 @@ int main(int argc, char* argv[]) {
         client_fds[i] = -1;
         free_read_data(&msg);
 
-        game_remove_disconnected_players();
+        game_remove_disconnected_players(&g);
         broadcast_to_all(&g, "INFO", "A player left the server");
+        
+        if (g.player_count < 2) {
+          broadcast_to_all(&g, "INFO", "not enough players");
+          g.game_over = 1;
+        }
         continue;
       }
 

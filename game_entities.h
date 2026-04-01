@@ -105,7 +105,7 @@ int game_has_playable(const GameState* g, int pid);
 int game_play_card(GameState* g, int pid, int card_idx, uint8_t wild_color);
 
 /* remove offline players, move its hand to draw pile*/
-void game_remove_disconnected_players();
+void game_remove_disconnected_players(GameState* g);
 
 /* Advance turn to the next player; resets has_drawn */
 void game_advance_turn(GameState* g);

@@ -31,16 +31,16 @@ static uint8_t parse_color_or_default(const char* s, uint8_t fallback) {
     return fallback;
   }
 
-  if (strcmp(s, "red") == 0 || strcmp(s, "RED") == 0 || strcmp(s, "0") == 0) {
+  if (strcmp(s, "red") == 0 || strcmp(s, "r") == 0 || strcmp(s, "0") == 0) {
     return COLOR_RED;
   }
-  if (strcmp(s, "blue") == 0 || strcmp(s, "BLUE") == 0 || strcmp(s, "1") == 0) {
+  if (strcmp(s, "blue") == 0 || strcmp(s, "b") == 0 || strcmp(s, "1") == 0) {
     return COLOR_BLUE;
   }
-  if (strcmp(s, "green") == 0 || strcmp(s, "GREEN") == 0 || strcmp(s, "2") == 0) {
+  if (strcmp(s, "green") == 0 || strcmp(s, "g") == 0 || strcmp(s, "2") == 0) {
     return COLOR_GREEN;
   }
-  if (strcmp(s, "yellow") == 0 || strcmp(s, "YELLOW") == 0 || strcmp(s, "3") == 0) {
+  if (strcmp(s, "yellow") == 0 || strcmp(s, "y") == 0 || strcmp(s, "3") == 0) {
     return COLOR_YELLOW;
   }
   return fallback;
@@ -172,6 +172,11 @@ void handle_msg_play(GameState* g, Player* player, const read_data* msg) {
     send_error_fd(player->sock_fd, "Game is not active");
     return;
   }
+
+  if (g->current_player_id != player->id) {
+    send_error_fd(player->sock_fd, "Not your turn");
+    return;
+  }
   if (msg->num_chunks < 2) {
     send_error_fd(player->sock_fd, "play requires index");
     return;
@@ -184,7 +189,7 @@ void handle_msg_play(GameState* g, Player* player, const read_data* msg) {
   }
 
   if (!game_play_card(g, player->id, card_idx, wild_color)) {
-    send_error_fd(player->sock_fd, "Invalid play");
+    send_error_fd(player->sock_fd, "Invalid play, cannot play this card");
     return;
   }
 
@@ -285,15 +290,19 @@ void handle_msg_callout(GameState* g, Player* player, const read_data* msg) {
     send_error_fd(player->sock_fd, "Target player not found");
     return;
   }
-  if (target->hand_count != 1 || target->called_uno) {
-    send_error_fd(player->sock_fd, "Callout invalid");
+  if (target->hand_count != 1) {
+    send_error_fd(player->sock_fd, "Callout invalid: target not at 1 card");
+    return;
+  }
+  if (target->called_uno) {
+    send_error_fd(player->sock_fd, "Callout invalid: target called UNO");
     return;
   }
 
   (void)game_deal_cards(g, target->id, 2);
   target->called_uno = 1;
 
-  send_action(g, "%s called out %s", player->name, target->name);
+  send_action(g, "%s called out %s, +2 cards", player->name, target->name);
 }
 
 void handle_msg_chat_send(GameState* g, Player* player, const read_data* msg) {

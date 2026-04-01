@@ -101,7 +101,6 @@ static Command parse_play(char* rest) {
   char* color_str = strtok(NULL, " \t");
   if (color_str) {
     if (parse_color_str(color_str) < 0) {
-
       return make_error("Color must be: red(r), blue(b), green(g), or yellow(y).");
     }
     strncpy(cmd.chosen_color_str, color_str, sizeof(cmd.chosen_color_str) - 1);
