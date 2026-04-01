@@ -16,7 +16,7 @@ static void print_prompt() {
 
 void print_help(void) {
   printf("\n");
-  printf("  %s┌─ Commands ─────────────────────────────────────────┐%s\n", FG_GRAY, RESET);
+  printf("  %s┌─ Commands ─────────────────────────────────┐%s\n", FG_GRAY, RESET);
   printf("  %s│%s  %splay <n>%s          play card at index n    %s│%s\n", FG_GRAY, RESET, BOLD, RESET, FG_GRAY, RESET);
   printf("  %s│%s  %splay <n> <color>%s  play Wild, choose color %s│%s\n", FG_GRAY, RESET, BOLD, RESET, FG_GRAY, RESET);
   printf("  %s│%s  %sdraw%s              draw a card             %s│%s\n", FG_GRAY, RESET, BOLD, RESET, FG_GRAY, RESET);
@@ -24,11 +24,12 @@ void print_help(void) {
   printf("  %s│%s  %suno%s               declare UNO             %s│%s\n", FG_GRAY, RESET, BOLD, RESET, FG_GRAY, RESET);
   printf("  %s│%s  %scallout <name>%s    catch someone's UNO     %s│%s\n", FG_GRAY, RESET, BOLD, RESET, FG_GRAY, RESET);
   printf("  %s│%s  %schat <msg>%s        send a chat message     %s│%s\n", FG_GRAY, RESET, BOLD, RESET, FG_GRAY, RESET);
+  printf("  %s│%s  %sstatus%s            see game status         %s│%s\n", FG_GRAY, RESET, BOLD, RESET, FG_GRAY, RESET);
   printf("  %s│%s  %sstart%s             request game start      %s│%s\n", FG_GRAY, RESET, BOLD, RESET, FG_GRAY, RESET);
   printf("  %s│%s  %shelp%s              show this help          %s│%s\n", FG_GRAY, RESET, BOLD, RESET, FG_GRAY, RESET);
-  printf("  %s│%s                                                %s│%s\n", FG_GRAY, RESET, FG_GRAY, RESET);
+  printf("  %s│%s                                            %s│%s\n", FG_GRAY, RESET, FG_GRAY, RESET);
   printf("  %s│%s  %sColors:%s r(ed) b(lue) g(reen) y(ellow)     %s│%s\n", FG_GRAY, RESET, DIM, RESET, FG_GRAY, RESET);
-  printf("  %s└────────────────────────────────────────────────────┘%s\n", FG_GRAY, RESET);
+  printf("  %s└────────────────────────────────────────────┘%s\n", FG_GRAY, RESET);
   print_prompt();
 }
 
