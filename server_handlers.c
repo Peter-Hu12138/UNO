@@ -241,7 +241,7 @@ void handle_msg_pass(GameState* g, Player* player, const read_data* msg) {
     send_error_fd(player->sock_fd, "Not your turn");
     return;
   }
-  if (!player->drawn_this_turn && game_has_playable(g, player->id)) {
+  if (!player->drawn_this_turn) {
     send_error_fd(player->sock_fd, "Cannot pass before drawing when playable");
     return;
   }

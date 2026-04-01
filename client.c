@@ -255,6 +255,7 @@ static void handle_server_message(const read_data* msg) {
 static int send_command(int fd, Command cmd) {
   switch (cmd.type) {
   case CMD_NONE:
+    print_event("[Input]", FG_GRAY, "Empty command");
     return 0;
   case CMD_PLAY:
     return write_in_chunks(fd, "MSG_PLAY", cmd.card_index_str, cmd.chosen_color_str, NULL);
@@ -337,6 +338,8 @@ int main(int argc, char* argv[]) {
 
   print_help();
 
+  char last_cmd_str[MAX_PAYLOAD] = "";
+
   while (connected) {
     fd_set rset;
     FD_ZERO(&rset);
@@ -372,11 +375,25 @@ int main(int argc, char* argv[]) {
         connected = 0;
         break;
       }
+
+      if (strcmp(line, "\x1b[A") == 0 || strcmp(line, "\x1b[A\n") == 0) {
+        if (last_cmd_str[0] == '\0') {
+          continue;
+        }
+        strncpy(line, last_cmd_str, sizeof(line) - 1);
+        line[sizeof(line) - 1] = '\0';
+      }
+
       Command cmd = parse_command(line);
       if (send_command(fd, cmd) == 1) {
         print_event("[System]", FG_GRAY, "Failed to send command.");
         connected = 0;
         break;
+      }
+
+      if (cmd.type != CMD_NONE && cmd.type != CMD_INVALID) {
+        strncpy(last_cmd_str, line, sizeof(last_cmd_str) - 1);
+        last_cmd_str[sizeof(last_cmd_str) - 1] = '\0';
       }
     }
 
