@@ -6,7 +6,7 @@
 /* ═══════════════════════════════════════════════════════════
  *  Constants
  * ═══════════════════════════════════════════════════════════ */
-#define INITIAL_HAND    7
+#define INITIAL_HAND    2
 #define DECK_SIZE       108
 #define MAX_NAME        20
 #define MAX_PLAYERS     8

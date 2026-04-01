@@ -254,7 +254,7 @@ int main(int argc, char* argv[]) {
 
         game_remove_disconnected_players(&g);
         broadcast_to_all(&g, "INFO", "A player left the server");
-        
+
         if (g.player_count < 2) {
           broadcast_to_all(&g, "INFO", "not enough players");
           g.game_over = 1;
@@ -265,6 +265,23 @@ int main(int argc, char* argv[]) {
       process_client_command(p, &msg);
       free_read_data(&msg);
     }
+  }
+
+  // print winner
+  Player* p = g.players;
+  int has_winner = 0;
+  for (int i = 0; i < g.player_count; i++) {
+    if (p->hand_count == 0) {
+      has_winner = 1;
+      char out[MAX_NAME + 32];
+      snprintf(out, sizeof(out), "Game over, winner: %s", p->name);
+      broadcast_to_all(&g, "INFO", out);
+      break;
+    }
+    p = p->next;
+  }
+  if (!has_winner) {
+    broadcast_to_all(&g, "INFO", "Game over, there is no winner");
   }
 
   /* Cleanup open sockets. */

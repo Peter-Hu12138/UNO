@@ -1,7 +1,5 @@
 /*
  * input.c  --  Command Parsing for UNO Client
- *
- *
  */
 #include <ctype.h>
 #include <stdlib.h>
@@ -9,15 +7,15 @@
 #include "client_input.h"
 
  /* ═══════════════════════════════════════════════════════════
-  *  Internal Helpers
-  * ═══════════════════════════════════════════════════════════ */
+ *  Internal Helpers
+ * ═══════════════════════════════════════════════════════════ */
 
-  /*
-  removes trailing whitespace characters such as spaces, tabs, newlines,
-  and carriage returns—from a given C-style string.
-  It modifies the provided string in-place by replacing the
-  trailing whitespace characters with null terminators.
-  */
+ /*
+ removes trailing whitespace characters such as spaces, tabs, newlines,
+ and carriage returns—from a given C-style string.
+ It modifies the provided string in-place by replacing the
+ trailing whitespace characters with null terminators.
+ */
 static void trim(char* s) {
   if (!s) return;
   size_t n = strlen(s);
@@ -64,7 +62,7 @@ int parse_color_str(const char* s) {
  * ═══════════════════════════════════════════════════════════ */
 
 static Command make_error(const char* msg) {
-  Command cmd = {0};
+  Command cmd = { 0 };
   memset(&cmd, 0, sizeof(cmd));
   cmd.type = CMD_INVALID;
   strncpy(cmd.error, msg, sizeof(cmd.error) - 1);
@@ -72,14 +70,14 @@ static Command make_error(const char* msg) {
 }
 
 static Command make_simple(CmdType t) {
-  Command cmd = {0};
+  Command cmd = { 0 };
   memset(&cmd, 0, sizeof(cmd));
   cmd.type = t;
   return cmd;
 }
 
 static Command parse_play(char* rest) {
-  Command cmd = {0};
+  Command cmd = { 0 };
   memset(&cmd, 0, sizeof(cmd));
   cmd.type = CMD_PLAY;
 
@@ -114,7 +112,7 @@ static Command parse_with_arg(CmdType type, char* rest, const char* usage) {
   if (!arg || *arg == '\0')
     return make_error(usage);
 
-  Command cmd = {0};
+  Command cmd = { 0 };
   memset(&cmd, 0, sizeof(cmd));
   cmd.type = type;
   strncpy(cmd.arg, arg, sizeof(cmd.arg) - 1);
@@ -152,8 +150,8 @@ Command parse_command(char* line) {
 
   if (eq_nocase(cmd_word, "chat"))
     return parse_with_arg(CMD_CHAT, rest, "Usage: chat <message>");
-  
-  if (eq_nocase(cmd_word, "status"))
+
+  if (eq_nocase(cmd_word, "status") || eq_nocase(cmd_word, "st"))
     return make_simple(CMD_STATUS);
 
   if (eq_nocase(cmd_word, "start"))
