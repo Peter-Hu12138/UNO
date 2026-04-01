@@ -36,6 +36,7 @@ void print_help(void) {
 void print_event(const char* tag, const char* tag_color, const char* msg) {
   printf("\r%s%s%s %s\n", tag_color, tag, RESET, msg);
   fflush(stdout);
+  print_prompt();
 }
 
 char* card_bg(uint8_t color) {

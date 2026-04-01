@@ -251,10 +251,11 @@ static void handle_server_message(const read_data* msg) {
   print_event("[Unknown]", FG_GRAY, type);
 }
 
+// return 0 if successfully sent to server (or not sent if caught invalid)
 static int send_command(int fd, Command cmd) {
   switch (cmd.type) {
   case CMD_NONE:
-    return 1;
+    return 0;
   case CMD_PLAY:
     return write_in_chunks(fd, "MSG_PLAY", cmd.card_index_str, cmd.chosen_color_str, NULL);
   case CMD_DRAW:
@@ -319,6 +320,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+  // connect to the server 
   int fd = connect_to_server(host, port);
   if (fd < 0) {
     perror("connect"); return 1;
@@ -326,6 +328,7 @@ int main(int argc, char* argv[]) {
 
   game_init(&st);
 
+  // send the user name
   if (write_in_chunks(fd, "MSG_JOIN", name, NULL) == 1) {
     perror("send join");
     close(fd);

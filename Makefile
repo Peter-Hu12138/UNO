@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -I.
+CFLAGS = -Wall -Wextra -g -O0 -fno-omit-frame-pointer -I.
 LDFLAGS =
 
 .PHONY: all clean test

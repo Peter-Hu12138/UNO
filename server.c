@@ -69,6 +69,10 @@ static void process_client_command(Player* p, const read_data* msg) {
   }
 
   const char* cmd = msg->data[0];
+  if (strcmp(cmd, "MSG_JOIN") == 0) {
+    handle_msg_join(&g, p, msg);
+    return;
+  }
   /*
   for each client command
   CMD_START
@@ -226,7 +230,7 @@ int main(int argc, char* argv[]) {
           append_player(p);
 
           client_fds[slot] = cfd;
-          broadcast_to_all(&g, "INFO", "A player joined the server");
+          broadcast_to_all(&g, "INFO", "A player is joining the server");
         }
       }
     }
@@ -247,7 +251,7 @@ int main(int argc, char* argv[]) {
         close(client_fds[i]);
         client_fds[i] = -1;
         free_read_data(&msg);
-        
+
         game_remove_disconnected_players();
         broadcast_to_all(&g, "INFO", "A player left the server");
         continue;

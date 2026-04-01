@@ -129,6 +129,13 @@ static void send_action(GameState* g, const char* fmt, ...) {
  *  Command Handlers
  * ============================================================ */
 
+void handle_msg_join(GameState* g, Player* player, const read_data* msg) {
+  strncpy(player->name, msg->data[1], MAX_NAME);
+  char out[OUT_MSG_SIZE];
+  snprintf(out, sizeof(out), "Player %s joined successfully", player->name);
+  broadcast_to_all(g, "INFO", out);
+}
+
 void handle_msg_start(GameState* g, Player* player, const read_data* msg) {
   (void)msg;
   if (player == NULL || !player->connected) {
