@@ -11,32 +11,34 @@
 #define MAX_NAME        20
 #define MAX_PLAYERS     8
 
-#define COLOR_RED     0
-#define COLOR_BLUE    1
-#define COLOR_GREEN   2
-#define COLOR_YELLOW  3
-#define COLOR_WILD    4
-
-#define CARD_0         0
-#define CARD_1         1
-#define CARD_2         2
-#define CARD_3         3
-#define CARD_4         4
-#define CARD_5         5
-#define CARD_6         6
-#define CARD_7         7
-#define CARD_8         8
-#define CARD_9         9
-#define CARD_SKIP     10
-#define CARD_REVERSE  11
-#define CARD_DRAW2    12
-#define CARD_WILD     13
-#define CARD_WILD4    14
-
+typedef enum {
+  COLOR_RED,
+  COLOR_BLUE,
+  COLOR_GREEN,
+  COLOR_YELLOW,
+  COLOR_WILD
+} CardColor;
+typedef enum {
+  CARD_0,
+  CARD_1,
+  CARD_2,
+  CARD_3,
+  CARD_4,
+  CARD_5,
+  CARD_6,
+  CARD_7,
+  CARD_8,
+  CARD_9,
+  CARD_SKIP,
+  CARD_REVERSE,
+  CARD_DRAW2,
+  CARD_WILD,
+  CARD_WILD4,
+} CardValue;
 typedef struct {
-  uint8_t color;
-  uint8_t value;
-  uint8_t wild_actual_color;
+  CardColor color;
+  CardValue value;
+  CardColor wild_actual_color;
 } Card;
 
 struct player {
@@ -65,7 +67,7 @@ typedef struct {
 
   Card draw_pile[DECK_SIZE];
   int draw_top_idx;
-  
+
   Card discard_pile[DECK_SIZE];
   int discard_top_idx;
 

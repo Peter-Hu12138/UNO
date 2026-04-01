@@ -176,7 +176,7 @@ int game_can_play(const GameState* g, Card c) {
 
   Card top = g->discard_pile[g->discard_top_idx];
   uint8_t active_color = top.color;
-  if ((top.value == CARD_WILD || top.value == CARD_WILD4) && top.wild_actual_color <= COLOR_YELLOW) {
+  if (top.value == CARD_WILD || top.value == CARD_WILD4) {
     active_color = top.wild_actual_color;
   }
 
