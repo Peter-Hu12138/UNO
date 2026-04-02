@@ -13,10 +13,10 @@
 
  /**
   * @brief Find a *connected* player by their name.
-  * 
-  * @param g 
-  * @param name 
-  * @return Player* 
+  *
+  * @param g
+  * @param name
+  * @return Player*
   */
 static Player* find_player_by_name(GameState* g, const char* name) {
   if (g == NULL || g->players == NULL || g->player_count <= 0) {
@@ -35,10 +35,10 @@ static Player* find_player_by_name(GameState* g, const char* name) {
 
 /**
  * @brief Parse a color string or return a default value.
- * 
- * @param s 
- * @param fallback 
- * @return uint8_t 
+ *
+ * @param s
+ * @param fallback
+ * @return uint8_t
  */
 static uint8_t parse_color_or_default(const char* s, uint8_t fallback) {
   if (s == NULL) {
@@ -62,15 +62,15 @@ static uint8_t parse_color_or_default(const char* s, uint8_t fallback) {
 
 /**
  * @brief Convert an array of cards to a string representation.
- * 
+ *
  * string must be in the form "color,value,wild_actual_color;...;..."
- * with each of color, value, wild_actual_color be integers defined in 
+ * with each of color, value, wild_actual_color be integers defined in
  * the enum found in game_entities.h
- * 
- * @param cards 
- * @param count 
- * @return char* 
- * 
+ *
+ * @param cards
+ * @param count
+ * @return char*
+ *
  * Source - revised from lines from GPT-5.3-Codex
  * Retrieved 2026-04-01
  */
@@ -120,12 +120,12 @@ static char* cards_to_string(const Card* cards, int count) {
  *  Private Helpers: Outbound Messaging
  * ============================================================ */
 
-/**
- * @brief Send an error message to a client with fd.
- * 
- * @param fd 
- * @param text 
- */
+ /**
+  * @brief Send an error message to a client with fd.
+  *
+  * @param fd
+  * @param text
+  */
 void send_error_fd(int fd, const char* text) {
   if (fd < 0) {
     return;
@@ -135,10 +135,10 @@ void send_error_fd(int fd, const char* text) {
 
 /**
  * @brief Send a message to all clients with type as the tag
- * 
- * @param g 
- * @param type 
- * @param text 
+ *
+ * @param g
+ * @param type
+ * @param text
  */
 void broadcast_to_all(GameState* g, const char* type, const char* text) {
   if (g == NULL || g->players == NULL || g->player_count <= 0) {
@@ -156,11 +156,11 @@ void broadcast_to_all(GameState* g, const char* type, const char* text) {
 
 /**
  * @brief Broadcast an ACTION line to all connected players.
- * 
- * @param g 
- * @param fmt 
+ *
+ * @param g
+ * @param fmt
  * @param ... same as vnsprintf
- * 
+ *
  * Source - revised from lines from GPT-5.3-Codex
  * Retrieved 2026-04-01
  */
@@ -181,7 +181,7 @@ static void send_action(GameState* g, const char* fmt, ...) {
 
  /**
   * @brief Handle the JOIN message from a client.
-  * 
+  *
   * Source - revised from lines from GPT-5.3-Codex
  * Retrieved 2026-04-01
   */
@@ -195,7 +195,7 @@ void handle_msg_join(GameState* g, Player* player, const read_data* msg) {
 
 /**
  * @brief Handle START command and begin the game when preconditions are met.
- * 
+ *
  * Source - revised from lines from GPT-5.3-Codex
  * Retrieved 2026-04-01
  */
@@ -223,7 +223,7 @@ void handle_msg_start(GameState* g, Player* player, const read_data* msg) {
 
 /**
  * @brief Handle PLAY command for the active player.
- * 
+ *
  * Source - revised from lines from GPT-5.3-Codex
  * Retrieved 2026-04-01
  */
@@ -257,17 +257,35 @@ void handle_msg_play(GameState* g, Player* player, const read_data* msg) {
     wild_color = parse_color_or_default(msg->data[2], COLOR_RED);
   }
 
+  Card card = player->hand[card_idx];
+  char* color_str;
+  char* val_str;
+
+  switch (card.color) {
+  case COLOR_RED:    color_str = "Red";break;
+  case COLOR_BLUE:   color_str = "Blue";break;
+  case COLOR_GREEN:  color_str = "Green";break;
+  case COLOR_YELLOW: color_str = "Yellow";break;
+  case COLOR_WILD:   color_str = "Wild";break;
+  default:           color_str = "???";
+  }
+  char* t[] = {
+    "0","1","2","3","4","5","6","7","8","9",
+    "Skip","Reverse","+2","Wild","Wild+4"
+  };
+  val_str = t[card.value];
+
   if (!game_play_card(g, player->id, card_idx, wild_color)) {
     send_error_fd(player->sock_fd, "Invalid play, cannot play this card");
     return;
   }
 
-  send_action(g, "%s played card index %d", player->name, card_idx);
+  send_action(g, "%s played card %s %s", player->name, color_str, val_str);
 }
 
 /**
  * @brief Handle DRAW command for the active player.
- * 
+ *
  * Source - revised from lines from GPT-5.3-Codex
  * Retrieved 2026-04-01
  */
@@ -301,7 +319,7 @@ void handle_msg_draw(GameState* g, Player* player, const read_data* msg) {
 
 /**
  * @brief Handle PASS command and advance to the next turn.
- * 
+ *
  * Source - revised from lines from GPT-5.3-Codex
  * Retrieved 2026-04-01
  */
@@ -334,7 +352,7 @@ void handle_msg_pass(GameState* g, Player* player, const read_data* msg) {
 
 /**
  * @brief Handle UNO command for players with exactly one card.
- * 
+ *
  * Source - revised from lines from GPT-5.3-Codex
  * Retrieved 2026-04-01
  */
@@ -359,7 +377,7 @@ void handle_msg_uno(GameState* g, Player* player, const read_data* msg) {
 
 /**
  * @brief Handle CALLOUT command and apply UNO penalty when valid.
- * 
+ *
  * Source - revised from lines from GPT-5.3-Codex
  * Retrieved 2026-04-01
  */
@@ -400,7 +418,7 @@ void handle_msg_callout(GameState* g, Player* player, const read_data* msg) {
 
 /**
  * @brief Handle CHAT command and broadcast a player message.
- * 
+ *
  * Source - revised from lines from GPT-5.3-Codex
  * Retrieved 2026-04-01
  */
@@ -423,7 +441,7 @@ void handle_msg_chat_send(GameState* g, Player* player, const read_data* msg) {
 
 /**
  * @brief Handle STATUS command and send serialized game/player state.
- * 
+ *
  * Source - revised from lines from GPT-5.3-Codex
  * Retrieved 2026-04-01
  */
@@ -434,17 +452,17 @@ void handle_msg_status(GameState* g, Player* player, const read_data* msg) {
   }
 
 
-    // order of the data are defined in this order
-    // int game_started;
-    // int game_over;
-    // int current_player_id;
-    // int direction;
-    // int draw_top_idx;
-    // int discard_top_idx;
-    // Card draw_pile[DECK_SIZE];
-    // Card discard_pile[DECK_SIZE];
-    // int player_count;
-    // int effect_applied;
+  // order of the data are defined in this order
+  // int game_started;
+  // int game_over;
+  // int current_player_id;
+  // int direction;
+  // int draw_top_idx;
+  // int discard_top_idx;
+  // Card draw_pile[DECK_SIZE];
+  // Card discard_pile[DECK_SIZE];
+  // int player_count;
+  // int effect_applied;
 
   char game_started[16];
   char game_over[16];
