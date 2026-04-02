@@ -11,6 +11,13 @@
  *  Private Helpers: Player Lookup / Parsing
  * ============================================================ */
 
+ /**
+  * @brief Find a *connected* player by their name.
+  * 
+  * @param g 
+  * @param name 
+  * @return Player* 
+  */
 static Player* find_player_by_name(GameState* g, const char* name) {
   if (g == NULL || g->players == NULL || g->player_count <= 0) {
     return NULL;
@@ -26,6 +33,13 @@ static Player* find_player_by_name(GameState* g, const char* name) {
   return NULL;
 }
 
+/**
+ * @brief Parse a color string or return a default value.
+ * 
+ * @param s 
+ * @param fallback 
+ * @return uint8_t 
+ */
 static uint8_t parse_color_or_default(const char* s, uint8_t fallback) {
   if (s == NULL) {
     return fallback;
@@ -46,6 +60,20 @@ static uint8_t parse_color_or_default(const char* s, uint8_t fallback) {
   return fallback;
 }
 
+/**
+ * @brief Convert an array of cards to a string representation.
+ * 
+ * string must be in the form "color,value,wild_actual_color;...;..."
+ * with each of color, value, wild_actual_color be integers defined in 
+ * the enum found in game_entities.h
+ * 
+ * @param cards 
+ * @param count 
+ * @return char* 
+ * 
+ * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
 static char* cards_to_string(const Card* cards, int count) {
   if (cards == NULL || count <= 0) {
     char* out = (char*)malloc(1);
@@ -92,6 +120,12 @@ static char* cards_to_string(const Card* cards, int count) {
  *  Private Helpers: Outbound Messaging
  * ============================================================ */
 
+/**
+ * @brief Send an error message to a client with fd.
+ * 
+ * @param fd 
+ * @param text 
+ */
 void send_error_fd(int fd, const char* text) {
   if (fd < 0) {
     return;
@@ -99,6 +133,13 @@ void send_error_fd(int fd, const char* text) {
   (void)write_in_chunks(fd, "ERROR", text, NULL);
 }
 
+/**
+ * @brief Send a message to all clients with type as the tag
+ * 
+ * @param g 
+ * @param type 
+ * @param text 
+ */
 void broadcast_to_all(GameState* g, const char* type, const char* text) {
   if (g == NULL || g->players == NULL || g->player_count <= 0) {
     return;
@@ -113,7 +154,16 @@ void broadcast_to_all(GameState* g, const char* type, const char* text) {
   }
 }
 
-/* Broadcast an ACTION line to all connected players. */
+/**
+ * @brief Broadcast an ACTION line to all connected players.
+ * 
+ * @param g 
+ * @param fmt 
+ * @param ... same as vnsprintf
+ * 
+ * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
 static void send_action(GameState* g, const char* fmt, ...) {
   char out[OUT_MSG_SIZE];
   va_list ap;
@@ -129,13 +179,26 @@ static void send_action(GameState* g, const char* fmt, ...) {
  *  Command Handlers
  * ============================================================ */
 
+ /**
+  * @brief Handle the JOIN message from a client.
+  * 
+  * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+  */
 void handle_msg_join(GameState* g, Player* player, const read_data* msg) {
   strncpy(player->name, msg->data[1], MAX_NAME);
+  player->name[MAX_NAME - 1] = '\0';
   char out[OUT_MSG_SIZE];
   snprintf(out, sizeof(out), "Player %s joined successfully", player->name);
   broadcast_to_all(g, "INFO", out);
 }
 
+/**
+ * @brief Handle START command and begin the game when preconditions are met.
+ * 
+ * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
 void handle_msg_start(GameState* g, Player* player, const read_data* msg) {
   (void)msg;
   if (player == NULL || !player->connected) {
@@ -158,6 +221,12 @@ void handle_msg_start(GameState* g, Player* player, const read_data* msg) {
   broadcast_to_all(g, "INFO", "Game started");
 }
 
+/**
+ * @brief Handle PLAY command for the active player.
+ * 
+ * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
 void handle_msg_play(GameState* g, Player* player, const read_data* msg) {
   if (g == NULL || msg == NULL) {
     if (player != NULL) {
@@ -196,6 +265,12 @@ void handle_msg_play(GameState* g, Player* player, const read_data* msg) {
   send_action(g, "%s played card index %d", player->name, card_idx);
 }
 
+/**
+ * @brief Handle DRAW command for the active player.
+ * 
+ * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
 void handle_msg_draw(GameState* g, Player* player, const read_data* msg) {
   (void)msg;
   if (player == NULL || !player->connected) {
@@ -224,6 +299,12 @@ void handle_msg_draw(GameState* g, Player* player, const read_data* msg) {
   send_action(g, "%s drew a card", player->name);
 }
 
+/**
+ * @brief Handle PASS command and advance to the next turn.
+ * 
+ * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
 void handle_msg_pass(GameState* g, Player* player, const read_data* msg) {
   (void)msg;
   if (player == NULL || !player->connected) {
@@ -251,6 +332,12 @@ void handle_msg_pass(GameState* g, Player* player, const read_data* msg) {
   send_action(g, "%s passed", player->name);
 }
 
+/**
+ * @brief Handle UNO command for players with exactly one card.
+ * 
+ * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
 void handle_msg_uno(GameState* g, Player* player, const read_data* msg) {
   (void)msg;
   if (player == NULL || !player->connected) {
@@ -270,6 +357,12 @@ void handle_msg_uno(GameState* g, Player* player, const read_data* msg) {
   send_action(g, "%s called UNO", player->name);
 }
 
+/**
+ * @brief Handle CALLOUT command and apply UNO penalty when valid.
+ * 
+ * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
 void handle_msg_callout(GameState* g, Player* player, const read_data* msg) {
   if (g == NULL || msg == NULL) {
     if (player != NULL) {
@@ -305,6 +398,12 @@ void handle_msg_callout(GameState* g, Player* player, const read_data* msg) {
   send_action(g, "%s called out %s, +2 cards", player->name, target->name);
 }
 
+/**
+ * @brief Handle CHAT command and broadcast a player message.
+ * 
+ * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
 void handle_msg_chat_send(GameState* g, Player* player, const read_data* msg) {
   if (g == NULL || msg == NULL || msg->num_chunks < 2) {
     if (player != NULL) {
@@ -322,11 +421,30 @@ void handle_msg_chat_send(GameState* g, Player* player, const read_data* msg) {
   broadcast_to_all(g, "CHAT", out);
 }
 
+/**
+ * @brief Handle STATUS command and send serialized game/player state.
+ * 
+ * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
 void handle_msg_status(GameState* g, Player* player, const read_data* msg) {
   (void)msg;
   if (g == NULL || player == NULL || !player->connected || player->sock_fd < 0) {
     return;
   }
+
+
+    // order of the data are defined in this order
+    // int game_started;
+    // int game_over;
+    // int current_player_id;
+    // int direction;
+    // int draw_top_idx;
+    // int discard_top_idx;
+    // Card draw_pile[DECK_SIZE];
+    // Card discard_pile[DECK_SIZE];
+    // int player_count;
+    // int effect_applied;
 
   char game_started[16];
   char game_over[16];
@@ -385,6 +503,7 @@ void handle_msg_status(GameState* g, Player* player, const read_data* msg) {
       break;
     }
 
+    // players only get id, name, hand cards, hand count
     (void)write_in_chunks(
       player->sock_fd,
       "STATE_UPDATE",

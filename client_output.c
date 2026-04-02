@@ -9,11 +9,17 @@
 
 
 // ========= printing
+/**
+ * @brief print >
+ */
 static void print_prompt() {
   printf("%s>%s ", FG_CYAN, RESET);
   fflush(stdout);
 }
 
+/**
+ * @brief print help message
+ */
 void print_help(void) {
   printf("\n");
   printf("  %s┌─ Commands ─────────────────────────────────┐%s\n", FG_GRAY, RESET);
@@ -24,7 +30,7 @@ void print_help(void) {
   printf("  %s│%s  %suno%s               declare UNO             %s│%s\n", FG_GRAY, RESET, BOLD, RESET, FG_GRAY, RESET);
   printf("  %s│%s  %scallout <name>%s    catch someone's UNO     %s│%s\n", FG_GRAY, RESET, BOLD, RESET, FG_GRAY, RESET);
   printf("  %s│%s  %schat <msg>%s        send a chat message     %s│%s\n", FG_GRAY, RESET, BOLD, RESET, FG_GRAY, RESET);
-  printf("  %s│%s  %sstatus%s            see game status         %s│%s\n", FG_GRAY, RESET, BOLD, RESET, FG_GRAY, RESET);
+  printf("  %s│%s  %sstatus / st%s       see game status         %s│%s\n", FG_GRAY, RESET, BOLD, RESET, FG_GRAY, RESET);
   printf("  %s│%s  %sstart%s             request game start      %s│%s\n", FG_GRAY, RESET, BOLD, RESET, FG_GRAY, RESET);
   printf("  %s│%s  %shelp%s              show this help          %s│%s\n", FG_GRAY, RESET, BOLD, RESET, FG_GRAY, RESET);
   printf("  %s│%s                                            %s│%s\n", FG_GRAY, RESET, FG_GRAY, RESET);
@@ -33,13 +39,26 @@ void print_help(void) {
   print_prompt();
 }
 
+/**
+ * @brief print an event message with a tag
+ * 
+ * @param tag 
+ * @param tag_color 
+ * @param msg 
+ */
 void print_event(const char* tag, const char* tag_color, const char* msg) {
   printf("\r%s%s%s %s\n", tag_color, tag, RESET, msg);
   fflush(stdout);
   print_prompt();
 }
 
-char* card_bg(uint8_t color) {
+/*
+ * this section contains utility functions for getting color strings 
+ or value strings from card values.
+ * Source - Claude 
+ * Retrieved 2026-03-29
+ */
+static inline char* card_bg(uint8_t color) {
   switch (color) {
   case COLOR_RED:    return BG_RED;
   case COLOR_BLUE:   return BG_BLUE;
@@ -49,7 +68,7 @@ char* card_bg(uint8_t color) {
   default:           return "";
   }
 }
-char* color_fg(uint8_t color) {
+static inline char* color_fg(uint8_t color) {
   switch (color) {
   case COLOR_RED:    return FG_RED;
   case COLOR_BLUE:   return FG_BLUE;
@@ -59,7 +78,7 @@ char* color_fg(uint8_t color) {
   default:           return "";
   }
 }
-char* color_name(uint8_t c) {
+static inline char* color_name(uint8_t c) {
   switch (c) {
   case COLOR_RED:    return "Red";
   case COLOR_BLUE:   return "Blue";
@@ -84,7 +103,11 @@ static inline const char* short_value(uint8_t v) {
   return (v <= CARD_WILD4) ? t[v] : "??";
 }
 
-/* Print a colored card inline: e.g. [Red 5] with background color */
+/**
+ * @brief Print a colored card inline: e.g. [Red 5] with background color 
+ * 
+ * @param c 
+ */
 void print_card(Card c) {
   const char* bg = card_bg(c.color);
   if (c.value == CARD_WILD || c.value == CARD_WILD4) {
@@ -95,13 +118,21 @@ void print_card(Card c) {
   }
 }
 
-/* Print the effective color indicator dot */
+/**
+ * @brief Print the effective color indicator dot 
+ * 
+ * @param color 
+ */
 void print_color_dot(uint8_t color) {
   printf("%s %s %s", card_bg(color), color_name(color), RESET);
 }
 
-/*
- * p is the player on this client, st is the global game state
+/**
+ * @brief Print the game status information for the current player
+ * p is the player on this client, st is the global game state 
+ * 
+ * @param p 
+ * @param st 
  */
 void print_status(const Player* p, const GameState* st) {
   if (!p->connected) return;

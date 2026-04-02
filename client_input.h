@@ -15,7 +15,7 @@
 
 typedef enum {
   CMD_NONE,           /* empty / whitespace-only input      */
-  
+
   CMD_START,          /* start                              */
   CMD_PLAY,           /* play <index> [color]               */
   CMD_DRAW,           /* draw                               */
@@ -51,10 +51,15 @@ typedef struct {
  *  API
  * ═══════════════════════════════════════════════════════════ */
 
- /*
-  * Parse a raw input line into a Command struct.
+ /**
+  * @brief Parse a raw input line into a Command struct.
+  *
   * The input string may be modified (strtok).
+  *
   * Returns a filled Command; check cmd.type for result.
+  *
+  * @param line
+  * @return Command
   */
 Command parse_command(char* line);
 
