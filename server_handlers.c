@@ -187,11 +187,14 @@ static void send_action(GameState* g, const char* fmt, ...) {
 
  /**
   * @brief Handle the JOIN message from a client.
-  *
-  * Source - revised from lines from GPT-5.3-Codex
- * Retrieved 2026-04-01
+  * reject if name already exists
   */
 void handle_msg_join(GameState* g, Player* player, const read_data* msg) {
+  if (find_player_by_name(g, msg->data[1]) != NULL) {
+    send_error_fd(player, "Name already exists");
+    player->connected = 0;
+    return;
+  }
   strncpy(player->name, msg->data[1], MAX_NAME);
   player->name[MAX_NAME - 1] = '\0';
   char out[OUT_MSG_SIZE];

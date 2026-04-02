@@ -105,19 +105,19 @@ static void process_client_command(Player* p, const read_data* msg) {
 
 
 int main(int argc, char* argv[]) {
-  /* Connection table used by select(). */
+  // Connection table used by select
   int client_fds[MAX_PLAYERS];
   for (int i = 0; i < MAX_PLAYERS; i++) {
     client_fds[i] = -1;
   }
 
-  /* Parse CLI args. */
+  // Parse CLI args. 
   int port = DEFAULT_PORT;
   if (argc > 1) {
     port = atoi(argv[1]);
   }
 
-  /* Process initialization. */
+  // Process initialization. 
   srand((unsigned)time(NULL));
 
   // ignoring SIGPIPE prevents a single failed write from crashing the server
@@ -125,7 +125,7 @@ int main(int argc, char* argv[]) {
 
   game_init(&g);
 
-  /* Socket setup. */
+  // Socket setup. 
   listen_fd = socket(AF_INET, SOCK_STREAM, 0);
   if (listen_fd < 0) {
     perror("socket");
@@ -158,7 +158,7 @@ int main(int argc, char* argv[]) {
 
   printf("=== UNO Server on port %d ready ===\n", port);
 
-  /* Main event loop: accept + read + dispatch. */
+  // Main event loop: accept + read + dispatch. 
   while (!g.game_over) {
     fd_set rset;
     FD_ZERO(&rset);
@@ -228,7 +228,7 @@ int main(int argc, char* argv[]) {
       }
     }
 
-    /* Read chunked messages from joined clients. */
+    // Read chunked messages from joined clients. 
     for (int i = 0; i < MAX_PLAYERS; i++) {
       if (client_fds[i] < 0 || !FD_ISSET(client_fds[i], &rset)) {
         continue;
@@ -257,6 +257,14 @@ int main(int argc, char* argv[]) {
       }
 
       process_client_command(p, &msg);
+
+      // if player is disconnected by unsuccessfully join
+      // or erros in the handling of the command
+      if (!p->connected) {
+        close(client_fds[i]);
+        client_fds[i] = -1;
+        game_remove_disconnected_players(&g);
+      }
       free_read_data(&msg);
     }
   }
@@ -278,7 +286,7 @@ int main(int argc, char* argv[]) {
     broadcast_to_all(&g, "INFO", "Game over, there is no winner");
   }
 
-  /* Cleanup open sockets. */
+  // Cleanup open sockets. 
   for (int i = 0; i < MAX_PLAYERS; i++) {
     if (client_fds[i] >= 0) {
       close(client_fds[i]);
