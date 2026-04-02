@@ -23,6 +23,12 @@
 static GameState g;
 static int listen_fd = -1;
 
+/**
+ * @brief find a player by local fd
+ * 
+ * @param fd 
+ * @return Player* 
+ */
 static Player* find_player_by_fd(int fd) {
   if (g.players == NULL || g.player_count <= 0) {
     return NULL;
@@ -38,28 +44,12 @@ static Player* find_player_by_fd(int fd) {
   return NULL;
 }
 
-static void append_player(Player* p) {
-  if (p == NULL) {
-    return;
-  }
-
-  if (g.players == NULL) {
-    g.players = p;
-    p->next = p;
-    p->prev = p;
-    g.player_count = 1;
-    return;
-  }
-
-  Player* tail = g.players->prev;
-  tail->next = p;
-  p->prev = tail;
-  p->next = g.players;
-  g.players->prev = p;
-  g.player_count++;
-}
-
-
+/**
+ * @brief Process a command from a client.
+ * 
+ * @param p 
+ * @param msg 
+ */
 static void process_client_command(Player* p, const read_data* msg) {
   if (p == NULL || msg == NULL || msg->num_chunks <= 0 || msg->data == NULL || msg->data[0] == NULL) {
     if (p != NULL) {
@@ -186,6 +176,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (select(maxfd + 1, &rset, NULL, NULL, NULL) < 0) {
+      // this error happens if some signal arises during a syscall
       if (errno == EINTR) {
         continue;
       }
@@ -227,7 +218,7 @@ int main(int argc, char* argv[]) {
           snprintf(id_str, sizeof(id_str), "%d", slot);
           (void)write_in_chunks(cfd, "ID", id_str, NULL);
           p->connected = 1;
-          append_player(p);
+          game_append_player(&g, p);
 
           client_fds[slot] = cfd;
           broadcast_to_all(&g, "INFO", "A player is joining the server");
@@ -267,7 +258,7 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  // print winner
+  // send who's the winner
   Player* p = g.players;
   int has_winner = 0;
   for (int i = 0; i < g.player_count; i++) {
@@ -294,6 +285,7 @@ int main(int argc, char* argv[]) {
     close(listen_fd);
   }
 
+  game_free_all_players(&g);
   printf("[Server] Shutdown.\n");
   return 0;
 }

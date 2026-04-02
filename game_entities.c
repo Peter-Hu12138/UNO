@@ -11,10 +11,16 @@
 #include "game_entities.h"
 
 
- /* ═══════════════════════════════════════════════════════════
-  *  private helpers
-  * ═══════════════════════════════════════════════════════════ */
-  /* Shuffle cards in-place with Fisher-Yates. */
+/* ═══════════════════════════════════════════════════════════
+*  private helpers
+* ═══════════════════════════════════════════════════════════ */
+
+/**
+ * @brief Shuffle cards in-place with Fisher-Yates.
+ * 
+ * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
 static void shuffle_cards(Card* pile, int n) {
   for (int i = n - 1; i > 0; i--) {
     int j = rand() % (i + 1);
@@ -24,7 +30,14 @@ static void shuffle_cards(Card* pile, int n) {
   }
 }
 
-/* Count currently connected players. */
+/**
+ * @brief Count connected players in the circular player list.
+ * @param g
+ * @return Number of connected players, or 0 when state/player list is invalid.
+ * 
+ * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
 static int connected_count(GameState* g) {
   if (g->players == NULL || g->player_count <= 0) {
     return 0;
@@ -41,7 +54,14 @@ static int connected_count(GameState* g) {
   return count;
 }
 
-/* Move all discard cards except the top one back to draw pile and shuffle. */
+/**
+ * @brief Rebuild the draw pile from the discard pile (except top discard).
+ * @param g 
+ * @return 1 when cards were moved and shuffled; 0 when reshuffle is not possible.
+ * 
+ * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
 static int reshuffle_discard_into_draw(GameState* g) {
   if (g->discard_top_idx <= 0) {
     return 0;
@@ -61,7 +81,14 @@ static int reshuffle_discard_into_draw(GameState* g) {
   return 1;
 }
 
-/* Push one card onto discard pile. */
+/**
+ * @brief Push one card onto the discard pile and reset effect tracking.
+ * @param g 
+ * @param c Card to place on top of discard.
+ * 
+ * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
 static void discard_push(GameState* g, Card c) {
   if (g->discard_top_idx < DECK_SIZE - 1) {
     g->discard_pile[++g->discard_top_idx] = c;
@@ -69,7 +96,14 @@ static void discard_push(GameState* g, Card c) {
   g->effect_applied = 0;
 }
 
-/* Draw one card from the shuffled deck area. */
+/**
+ * @brief Draw the top card from the draw pile.
+ * @param g
+ * @return Drawn card, or a fallback wild card when no cards are available.
+ * 
+ * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
 static Card draw_one(GameState* g) {
   if (g->draw_top_idx < 0) {
     if (!reshuffle_discard_into_draw(g)) {
@@ -83,7 +117,10 @@ static Card draw_one(GameState* g) {
 /* ═══════════════════════════════════════════════════════════
  *  methods
  * ═══════════════════════════════════════════════════════════ */
- /* Initialize game defaults for a new match state. */
+/**
+ * @brief Initialize a game state with default values.
+ * @param g
+ */
 void game_init(GameState* g) {
   memset(g, 0, sizeof(*g));
   g->direction = 1;
@@ -93,7 +130,12 @@ void game_init(GameState* g) {
   g->effect_applied = 0;
 }
 
-/* Return the player node for pid, or NULL if not found. */
+/**
+ * @brief Find a player node by player id.
+ * @param g
+ * @param pid.
+ * @return
+ */
 Player* game_find_player(GameState* g, int pid) {
   if (g->players == NULL || g->player_count <= 0) {
     return NULL;
@@ -109,7 +151,59 @@ Player* game_find_player(GameState* g, int pid) {
   return NULL;
 }
 
-/* Build and shuffle a standard UNO deck into draw_pile. */
+/**
+ * @brief Free every player node
+ * @param g
+ */
+void game_free_all_players(GameState* g) {
+  if (g == NULL || g->players == NULL || g->player_count <= 0) {
+    return;
+  }
+
+  Player* p = g->players;
+  for (int i = 0; i < g->player_count; i++) {
+    Player* next = p->next;
+    free(p);
+    p = next;
+  }
+
+  g->players = NULL;
+  g->player_count = 0;
+}
+
+/**
+ * @brief Append a player to the circular doubly linked player list.
+ * @param g 
+ * @param p new Player node to append.
+ */
+void game_append_player(GameState* g, Player* p) {
+  if (g == NULL || p == NULL) {
+    return;
+  }
+
+  if (g->players == NULL) {
+    g->players = p;
+    p->next = p;
+    p->prev = p;
+    g->player_count = 1;
+    return;
+  }
+
+  Player* tail = g->players->prev;
+  tail->next = p;
+  p->prev = tail;
+  p->next = g->players;
+  g->players->prev = p;
+  g->player_count++;
+}
+
+/**
+ * @brief Build and shuffle a standard UNO deck into the draw pile.
+ * @param g 
+ * 
+ * Source - revised from lines from Claude
+ * Retrieved 2026-04-01
+ */
 void game_build_deck(GameState* g) {
   int idx = 0;
 
@@ -130,7 +224,16 @@ void game_build_deck(GameState* g) {
   g->draw_top_idx = idx - 1;
 }
 
-/* Remove one card from pid hand by index and compact the array. */
+/**
+ * @brief Remove a card from a player's hand by index
+ * @param g
+ * @param pid 
+ * @param idx Zero-based card index in the player's hand.
+ * @return Removed card, or a fallback invalid card when inputs are invalid.
+ * 
+ * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
 Card game_remove_card(GameState* g, int pid, int idx) {
   Player* p = game_find_player(g, pid);
   if (p == NULL || idx < 0 || idx >= p->hand_count) {
@@ -146,7 +249,16 @@ Card game_remove_card(GameState* g, int pid, int idx) {
   return removed;
 }
 
-/* Deal count cards to a player from the deck cursor. */
+/**
+ * @brief Deal cards from draw pile to a player's hand.
+ * @param g Game state containing draw pile and players.
+ * @param pid
+ * @param count Requested number of cards.
+ * @return Number of cards actually dealt.
+ * 
+ * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
 int game_deal_cards(GameState* g, int pid, int count) {
   Player* p = game_find_player(g, pid);
   if (p == NULL || count <= 0) {
@@ -165,7 +277,12 @@ int game_deal_cards(GameState* g, int pid, int count) {
   return dealt;
 }
 
-/* Check if c is legal on the current top card. */
+/**
+ * @brief Check whether a card can be legally played.
+ * @param g
+ * @param c Candidate card.
+ * @return 1 when legal to play, otherwise 0.
+ */
 int game_can_play(const GameState* g, Card c) {
   if (g->discard_top_idx < 0) {
     return 1;
@@ -190,7 +307,9 @@ int game_can_play(const GameState* g, Card c) {
   return 0;
 }
 
-/* Return non-zero if pid has any playable card. */
+/**
+ * @brief TEMP UNUSED Determine whether a player has at least one playable card.
+ */
 int game_has_playable(const GameState* g, int pid) {
   if (g->players == NULL || g->player_count <= 0) {
     return 0;
@@ -212,7 +331,17 @@ int game_has_playable(const GameState* g, int pid) {
   return 0;
 }
 
-/* let the player pid play a card in their hand */
+/**
+ * @brief Play a selected hand card for the current player.
+ * @param g 
+ * @param pid 
+ * @param card_idx Index of the card in player's hand.
+ * @param wild_color Chosen active color for wild cards.
+ * @return 1 on successful play, otherwise 0.
+ * 
+ * Source - revised from lines from Claude
+ * Retrieved 2026-04-01
+ */
 int game_play_card(GameState* g, int pid, int card_idx, uint8_t wild_color) {
   if (g == NULL) {
     return 0;
@@ -262,7 +391,13 @@ int game_play_card(GameState* g, int pid, int card_idx, uint8_t wild_color) {
   return 1;
 }
 
-/* remove offline players, move their hands back to draw pile */
+/**
+ * @brief Remove disconnected players and recycle their cards into draw pile.
+ * @param g Current game state.
+ * 
+ * Source - GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
 void game_remove_disconnected_players(GameState* g) {
   if (g == NULL || g->players == NULL || g->player_count <= 0) {
     return;
@@ -344,12 +479,15 @@ void game_remove_disconnected_players(GameState* g) {
   }
 }
 
-/*
- * Advance to the next turn.
- * This function also evaluates and applies the current top-card effect once:
- * - Reverse flips direction (and skips in 2-player games)
- * - Skip jumps over one player
- * - Draw2/Wild4 forces next player to draw, then skips them
+/**
+ * @brief Advance to the next turn.
+ * 
+ * This function also evaluates and applies the current top-card effect once:  
+ * - Reverse flips direction (and skips in 2-player games)  
+ * - Skip jumps over one player  
+ * - Draw2/Wild4 forces next player to draw, then skips them  
+ * 
+ * @param g 
  */
 void game_advance_turn(GameState* g) {
   Player* current = game_find_player(g, g->current_player_id);
@@ -394,7 +532,12 @@ void game_advance_turn(GameState* g) {
   }
 }
 
-/* Build deck, deal initial hands, reveal top card, and pick first turn. */
+/**
+ * @brief Start a game by initializing deck, hands, discard, and first turn.
+ * @param g Game state to start.
+ * @param players Head of the circular player list.
+ * @param player_cnt Number of players in the list.
+ */
 void game_start(GameState* g, Player* players, int player_cnt) {
   g->game_started = 1;
   g->game_over = 0;

@@ -24,14 +24,41 @@
 
 #include "game_entities.h"
 
+/**
+ * @brief print help message
+ */
 void print_help(void);
 
+/**
+ * @brief print an event message with a tag
+ * 
+ * @param tag 
+ * @param tag_color 
+ * @param msg 
+ */
 void print_event(const char* tag, const char* tag_color, const char* msg);
 
+/**
+ * @brief Print a colored card inline: e.g. [Red 5] with background color 
+ * 
+ * @param c 
+ */
 void print_card(Card c);
 
+/**
+ * @brief Print the effective color indicator dot 
+ * 
+ * @param color 
+ */
 void print_color_dot(uint8_t color);
 
+/**
+ * @brief Print the game status information for the current player
+ * p is the player on this client, st is the global game state 
+ * 
+ * @param p 
+ * @param st 
+ */
 void print_status(const Player* p, const GameState* st);
 
 #endif

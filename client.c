@@ -25,6 +25,13 @@ static int id = -1;
 static int expected_players = 0;
 static int received_players = 0;
 
+/**
+ * @brief Parse an integer from a string, returning a default value if parsing fails
+ * 
+ * @param s 
+ * @param fallback 
+ * @return int 
+ */
 static int parse_int_or_default(const char* s, int fallback) {
   if (s == NULL) {
     return fallback;
@@ -38,11 +45,26 @@ static int parse_int_or_default(const char* s, int fallback) {
   return (int)v;
 }
 
+/**
+ * @brief Convert a string representation of cards to an array of Card structs
+ * string must be in the form "color,value,wild_actual_color;...;..."
+ * with each of color, value, wild_actual_color be integers defined in the enum 
+ * found in game_entities.h
+ * 
+ * @param s 
+ * @param out 
+ * @param max_cards 
+ * @return int 
+ * 
+ * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
 static int string_to_cards_local(const char* s, Card* out, int max_cards) {
   if (s == NULL || out == NULL || max_cards <= 0 || s[0] == '\0') {
     return 0;
   }
 
+  // need to copy since strtok needs a dynamically alloced str
   size_t n = strlen(s) + 1;
   char* tmp = (char*)malloc(n);
   if (tmp == NULL) {
@@ -50,6 +72,7 @@ static int string_to_cards_local(const char* s, Card* out, int max_cards) {
   }
   memcpy(tmp, s, n);
 
+  // read each section
   int count = 0;
   char* save = NULL;
   char* tok = strtok_r(tmp, ";", &save);
@@ -58,25 +81,6 @@ static int string_to_cards_local(const char* s, Card* out, int max_cards) {
     int value = 0;
     int wild = 0;
     if (sscanf(tok, "%d,%d,%d", &color, &value, &wild) == 3) {
-      if (color < COLOR_RED) {
-        color = COLOR_RED;
-      }
-      if (color > COLOR_WILD) {
-        color = COLOR_WILD;
-      }
-      if (value < CARD_0) {
-        value = CARD_0;
-      }
-      if (value > CARD_WILD4) {
-        value = CARD_WILD4;
-      }
-      if (wild < COLOR_RED) {
-        wild = COLOR_RED;
-      }
-      if (wild > COLOR_WILD) {
-        wild = COLOR_WILD;
-      }
-
       out[count++] = (Card){
         (CardColor)color,
         (CardValue)value,
@@ -90,44 +94,24 @@ static int string_to_cards_local(const char* s, Card* out, int max_cards) {
   return count;
 }
 
-static void free_local_players(GameState* g) {
-  if (g == NULL || g->players == NULL || g->player_count <= 0) {
-    return;
-  }
-
-  Player* p = g->players;
-  for (int i = 0; i < g->player_count; i++) {
-    Player* next = p->next;
-    free(p);
-    p = next;
-  }
-
-  g->players = NULL;
-  g->player_count = 0;
-}
-
-static void append_local_player(GameState* g, Player* p) {
-  if (g == NULL || p == NULL) {
-    return;
-  }
-
-  if (g->players == NULL) {
-    g->players = p;
-    p->next = p;
-    p->prev = p;
-    g->player_count = 1;
-    return;
-  }
-
-  Player* tail = g->players->prev;
-  tail->next = p;
-  p->prev = tail;
-  p->next = g->players;
-  g->players->prev = p;
-  g->player_count++;
-}
-
-static void handle_server_message(const read_data* msg) {
+/**
+ * @brief Handle messages received from the server
+ * 
+ * types:
+ * - ID
+ * - STATE_UPDATE GAME
+ * - STATE_UPDATE PLAYER
+ * - GAME_STATE
+ * - ERROR
+ * - INFO
+ * - ACTION
+ * - CHAT
+ * @param msg 
+ * 
+ * Source - revised from lines from GPT-5.3-Codex
+ * Retrieved 2026-04-01
+ */
+static void handle_server_message(const read_data* msg, int fd) {
   if (msg == NULL || msg->num_chunks <= 0 || msg->data == NULL || msg->data[0] == NULL) {
     return;
   }
@@ -136,7 +120,7 @@ static void handle_server_message(const read_data* msg) {
   const char* text = (msg->num_chunks >= 2 && msg->data[1] != NULL) ? msg->data[1] : "";
 
   if (strcmp(type, "ID") == 0) {
-    id = (int)strtol(text, NULL, 10);
+    id = (int) strtol(text, NULL, 10);
     return;
   }
   if (strcmp(type, "STATE_UPDATE") == 0) {
@@ -150,7 +134,19 @@ static void handle_server_message(const read_data* msg) {
         return;
       }
 
-      free_local_players(&st);
+      game_free_all_players(&st);
+
+      // order of the data are defined in this order
+      // int game_started;
+      // int game_over;
+      // int current_player_id;
+      // int direction;
+      // int draw_top_idx;
+      // int discard_top_idx;
+      // Card draw_pile[DECK_SIZE];
+      // Card discard_pile[DECK_SIZE];
+      // int player_count;
+      // int effect_applied;
 
       st.game_started = parse_int_or_default(msg->data[2], 0);
       st.game_over = parse_int_or_default(msg->data[3], 0);
@@ -190,6 +186,8 @@ static void handle_server_message(const read_data* msg) {
         return;
       }
 
+      // players only get id, name, hand cards, hand count
+
       Player* p = (Player*)calloc(1, sizeof(Player));
       if (p == NULL) {
         return;
@@ -213,7 +211,7 @@ static void handle_server_message(const read_data* msg) {
       }
       p->hand_count = hand_count;
 
-      append_local_player(&st, p);
+      game_append_player(&st, p);
       received_players++;
 
       if (received_players >= expected_players) {
@@ -241,6 +239,10 @@ static void handle_server_message(const read_data* msg) {
   }
   if (strcmp(type, "ACTION") == 0) {
     print_event("[Action]", FG_GREEN, text);
+
+    // **** TODO: test auto refresing ***
+    write_in_chunks(fd, "MSG_STATUS", NULL);
+
     return;
   }
   if (strcmp(type, "CHAT") == 0) {
@@ -251,7 +253,22 @@ static void handle_server_message(const read_data* msg) {
   print_event("[Unknown]", FG_GRAY, type);
 }
 
-// return 0 if successfully sent to server (or not sent if caught invalid)
+/**
+ * @brief send command to the server
+ * return 0 if successfully sent to server (or not sent if caught invalid)
+ * client commands that sends data:
+ *  - CMD_START
+ *  - CMD_PLAY
+ *  - CMD_DRAW
+ *  - CMD_PASS
+ *  - CMD_UNO
+ *  - CMD_CALLOUT
+ *  - CMD_CHAT
+ *  - CMD_STATUS
+ * @param fd 
+ * @param cmd 
+ * @return int 
+ */
 static int send_command(int fd, Command cmd) {
   switch (cmd.type) {
   case CMD_NONE:
@@ -284,7 +301,13 @@ static int send_command(int fd, Command cmd) {
   }
 }
 
-// connect to the server using the standard procedure
+/**
+ * @brief connect to the server using the standard procedure
+ * 
+ * @param host 
+ * @param port 
+ * @return int 
+ */
 static int connect_to_server(const char* host, int port) {
   int fd = socket(AF_INET, SOCK_STREAM, 0);
   if (fd < 0) return -1;
@@ -338,6 +361,7 @@ int main(int argc, char* argv[]) {
 
   print_help();
 
+  // save the last input, used if UpArrow is inputted as a cmd
   char last_cmd_str[MAX_PAYLOAD] = "";
 
   while (connected) {
@@ -348,6 +372,7 @@ int main(int argc, char* argv[]) {
     int maxfd = (fd > STDIN_FILENO) ? fd : STDIN_FILENO;
 
     if (select(maxfd + 1, &rset, NULL, NULL, NULL) < 0) {
+      // this error happens if some signal arises during a syscall
       if (errno == EINTR) continue;
       perror("select");
       break;
@@ -363,7 +388,7 @@ int main(int argc, char* argv[]) {
         break;
       }
 
-      handle_server_message(&msg);
+      handle_server_message(&msg, fd);
       free_read_data(&msg);
     }
 
@@ -376,6 +401,7 @@ int main(int argc, char* argv[]) {
         break;
       }
 
+      // if the char code for the up arrow is entered
       if (strcmp(line, "\x1b[A") == 0 || strcmp(line, "\x1b[A\n") == 0) {
         if (last_cmd_str[0] == '\0') {
           continue;
@@ -391,6 +417,7 @@ int main(int argc, char* argv[]) {
         break;
       }
 
+      // save a valid command
       if (cmd.type != CMD_NONE && cmd.type != CMD_INVALID) {
         strncpy(last_cmd_str, line, sizeof(last_cmd_str) - 1);
         last_cmd_str[sizeof(last_cmd_str) - 1] = '\0';
