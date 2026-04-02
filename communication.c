@@ -6,14 +6,31 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/time.h>
 
+/*
+ * fd: file descriptor to write into
+ * buffer: a pointer, content of which is written
+ * size: size bytes will be written
+ * 
+ * This function always tries to write size bytes to fd.
+ * A timeout of 5s is set to prevent forever dead lock.
+ * Return 1 if the socket is closed, return -1 if timeouts.
+ * 
+*/
 int buffered_write(int fd, const void * buffer, int size){
 	const void * buf = buffer;
+	struct timeval timeout;
+	timeout.tv_sec = 5;  // 5 seconds
+	timeout.tv_usec = 0;
+	if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0) {
+		perror("setsockopt");
+	}
 	while (size > 0) {
 		int ret = write(fd, buf, size);
 		if (ret < 0) {
 			perror("write");
-			exit(1);
+			return -1;
 		}
 		else if (ret == 0) {
 			return 1;
@@ -21,9 +38,26 @@ int buffered_write(int fd, const void * buffer, int size){
 		size -= ret;
 		buf += ret;
 	}
+
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 0;
+
+	if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0) {
+		perror("setsockopt failed");
+	}
 	return 0;
 }
 
+/*
+ * fd: file descriptor to read from
+ * buffer: a pointer, content of read is written to buffer
+ * size: size bytes will be read
+ * 
+ * This function always tries to read size bytes to fd.
+ * A timeout of 5s is set to prevent forever dead lock.
+ * Return 1 if the socket is closed, return -1 if timeouts.
+ * 
+ */
 int buffered_read(int fd, void * buffer, int size){
 	char * buf = (char *) buffer;
 	while (size > 0) {
@@ -43,6 +77,14 @@ int buffered_read(int fd, void * buffer, int size){
 
 
 
+/*
+ * fd: file descriptor to write into
+ * var args: null terminated pointers, contents of which are written to fd
+ * size: size bytes will be written
+ * 
+ * This function writes var args to fd according to our protocol communication.h.
+ * 
+ */
 int write_in_chunks(int fd, const char *arg, ...){
 	int len = 0;
 	const char * arg_ptr = arg;
@@ -87,6 +129,14 @@ int write_in_chunks(int fd, const char *arg, ...){
 	return 0;
 }
 
+
+/*
+ * fd: file descriptor to read from.
+ * data: pointer to read_data, to which read data is written.
+ * 
+ * This function reads args into data according to our protocol expalined in communication.h.
+ * 
+ */
 int read_in_chunks(int fd, read_data* data) {
 	int len;
 	fprintf(stderr, "DEBUG read_in_chunks: starting\n");
