@@ -4,7 +4,7 @@
 #include "communication.h"
 #include "game_entities.h"
 
-void send_error_fd(int fd, const char* text);
+void send_error_fd(Player* player, const char* text);
 void broadcast_to_all(GameState* g, const char* type, const char* text);
 
 /**

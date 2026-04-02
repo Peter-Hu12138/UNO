@@ -126,11 +126,14 @@ static char* cards_to_string(const Card* cards, int count) {
   * @param fd
   * @param text
   */
-void send_error_fd(int fd, const char* text) {
-  if (fd < 0) {
+void send_error_fd(Player* p, const char* text) {
+  if (p == NULL || p->sock_fd < 0) {
     return;
   }
-  (void)write_in_chunks(fd, "ERROR", text, NULL);
+  int err = write_in_chunks(p->sock_fd, "ERROR", text, NULL);
+  if (err) {
+    p->connected = 0;
+  }
 }
 
 /**
@@ -148,7 +151,10 @@ void broadcast_to_all(GameState* g, const char* type, const char* text) {
   Player* p = g->players;
   for (int i = 0; i < g->player_count; i++) {
     if (p->connected && p->sock_fd >= 0) {
-      (void)write_in_chunks(p->sock_fd, type, text, NULL);
+      int err = write_in_chunks(p->sock_fd, type, text, NULL);
+      if (err) {
+        p->connected = 0;
+      }
     }
     p = p->next;
   }
@@ -205,15 +211,15 @@ void handle_msg_start(GameState* g, Player* player, const read_data* msg) {
     return;
   }
   if (g == NULL) {
-    send_error_fd(player->sock_fd, "Invalid game state");
+    send_error_fd(player, "Invalid game state");
     return;
   }
   if (g->game_started) {
-    send_error_fd(player->sock_fd, "Game already started");
+    send_error_fd(player, "Game already started");
     return;
   }
   if (g->player_count < 2) {
-    send_error_fd(player->sock_fd, "Need at least 2 players to start");
+    send_error_fd(player, "Need at least 2 players to start");
     return;
   }
 
@@ -230,7 +236,7 @@ void handle_msg_start(GameState* g, Player* player, const read_data* msg) {
 void handle_msg_play(GameState* g, Player* player, const read_data* msg) {
   if (g == NULL || msg == NULL) {
     if (player != NULL) {
-      send_error_fd(player->sock_fd, "Invalid request");
+      send_error_fd(player, "Invalid request");
     }
     return;
   }
@@ -238,16 +244,16 @@ void handle_msg_play(GameState* g, Player* player, const read_data* msg) {
     return;
   }
   if (!g->game_started || g->game_over) {
-    send_error_fd(player->sock_fd, "Game is not active");
+    send_error_fd(player, "Game is not active");
     return;
   }
 
   if (g->current_player_id != player->id) {
-    send_error_fd(player->sock_fd, "Not your turn");
+    send_error_fd(player, "Not your turn");
     return;
   }
   if (msg->num_chunks < 2) {
-    send_error_fd(player->sock_fd, "play requires index");
+    send_error_fd(player, "play requires index");
     return;
   }
 
@@ -276,7 +282,7 @@ void handle_msg_play(GameState* g, Player* player, const read_data* msg) {
   val_str = t[card.value];
 
   if (!game_play_card(g, player->id, card_idx, wild_color)) {
-    send_error_fd(player->sock_fd, "Invalid play, cannot play this card");
+    send_error_fd(player, "Invalid play, cannot play this card");
     return;
   }
 
@@ -295,20 +301,20 @@ void handle_msg_draw(GameState* g, Player* player, const read_data* msg) {
     return;
   }
   if (g == NULL) {
-    send_error_fd(player->sock_fd, "Invalid game state");
+    send_error_fd(player, "Invalid game state");
     return;
   }
   if (!g->game_started || g->game_over) {
-    send_error_fd(player->sock_fd, "Game is not active");
+    send_error_fd(player, "Game is not active");
     return;
   }
 
   if (g->current_player_id != player->id) {
-    send_error_fd(player->sock_fd, "Not your turn");
+    send_error_fd(player, "Not your turn");
     return;
   }
   if (player->drawn_this_turn) {
-    send_error_fd(player->sock_fd, "Already drew this turn");
+    send_error_fd(player, "Already drew this turn");
     return;
   }
 
@@ -329,19 +335,19 @@ void handle_msg_pass(GameState* g, Player* player, const read_data* msg) {
     return;
   }
   if (g == NULL) {
-    send_error_fd(player->sock_fd, "Invalid game state");
+    send_error_fd(player, "Invalid game state");
     return;
   }
   if (!g->game_started || g->game_over) {
-    send_error_fd(player->sock_fd, "Game is not active");
+    send_error_fd(player, "Game is not active");
     return;
   }
   if (g->current_player_id != player->id) {
-    send_error_fd(player->sock_fd, "Not your turn");
+    send_error_fd(player, "Not your turn");
     return;
   }
   if (!player->drawn_this_turn) {
-    send_error_fd(player->sock_fd, "Cannot pass before drawing when playable");
+    send_error_fd(player, "Cannot pass before drawing when playable");
     return;
   }
 
@@ -362,11 +368,11 @@ void handle_msg_uno(GameState* g, Player* player, const read_data* msg) {
     return;
   }
   if (g == NULL) {
-    send_error_fd(player->sock_fd, "Invalid game state");
+    send_error_fd(player, "Invalid game state");
     return;
   }
   if (player->hand_count != 1) {
-    send_error_fd(player->sock_fd, "UNO is only valid with one card");
+    send_error_fd(player, "UNO is only valid with one card");
     return;
   }
 
@@ -384,7 +390,7 @@ void handle_msg_uno(GameState* g, Player* player, const read_data* msg) {
 void handle_msg_callout(GameState* g, Player* player, const read_data* msg) {
   if (g == NULL || msg == NULL) {
     if (player != NULL) {
-      send_error_fd(player->sock_fd, "Invalid request");
+      send_error_fd(player, "Invalid request");
     }
     return;
   }
@@ -392,21 +398,21 @@ void handle_msg_callout(GameState* g, Player* player, const read_data* msg) {
     return;
   }
   if (msg->num_chunks < 2) {
-    send_error_fd(player->sock_fd, "callout requires target name");
+    send_error_fd(player, "callout requires target name");
     return;
   }
 
   Player* target = find_player_by_name(g, msg->data[1]);
   if (target == NULL || !target->connected) {
-    send_error_fd(player->sock_fd, "Target player not found");
+    send_error_fd(player, "Target player not found");
     return;
   }
   if (target->hand_count != 1) {
-    send_error_fd(player->sock_fd, "Callout invalid: target not at 1 card");
+    send_error_fd(player, "Callout invalid: target not at 1 card");
     return;
   }
   if (target->called_uno) {
-    send_error_fd(player->sock_fd, "Callout invalid: target called UNO");
+    send_error_fd(player, "Callout invalid: target called UNO");
     return;
   }
 
@@ -425,7 +431,7 @@ void handle_msg_callout(GameState* g, Player* player, const read_data* msg) {
 void handle_msg_chat_send(GameState* g, Player* player, const read_data* msg) {
   if (g == NULL || msg == NULL || msg->num_chunks < 2) {
     if (player != NULL) {
-      send_error_fd(player->sock_fd, "chat requires message text");
+      send_error_fd(player, "chat requires message text");
     }
     return;
   }
@@ -486,7 +492,7 @@ void handle_msg_status(GameState* g, Player* player, const read_data* msg) {
   char* discard_cards = cards_to_string(g->discard_pile, g->discard_top_idx + 1);
 
   if (draw_cards == NULL || discard_cards == NULL) {
-    send_error_fd(player->sock_fd, "Failed to build state payload");
+    send_error_fd(player, "Failed to build state payload");
     goto cleanup_state_strings;
   }
 
@@ -517,7 +523,7 @@ void handle_msg_status(GameState* g, Player* player, const read_data* msg) {
 
     char* hand_cards = cards_to_string(p->hand, p->hand_count);
     if (hand_cards == NULL) {
-      send_error_fd(player->sock_fd, "Failed to build player payload");
+      send_error_fd(player, "Failed to build player payload");
       break;
     }
 

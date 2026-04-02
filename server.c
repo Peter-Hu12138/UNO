@@ -53,7 +53,7 @@ static Player* find_player_by_fd(int fd) {
 static void process_client_command(Player* p, const read_data* msg) {
   if (p == NULL || msg == NULL || msg->num_chunks <= 0 || msg->data == NULL || msg->data[0] == NULL) {
     if (p != NULL) {
-      send_error_fd(p->sock_fd, "Invalid command packet");
+      send_error_fd(p, "Invalid command packet");
     }
     return;
   }
@@ -99,7 +99,7 @@ static void process_client_command(Player* p, const read_data* msg) {
     handle_msg_status(&g, p, msg);
   }
   else {
-    send_error_fd(p->sock_fd, "Unknown command");
+    send_error_fd(p, "Unknown command");
   }
 }
 
@@ -233,9 +233,10 @@ int main(int argc, char* argv[]) {
       }
 
       read_data msg = { 0 };
-      // on read error
+      // on read error - or timed out
+      // or if player is already disconneced
       Player* p = find_player_by_fd(client_fds[i]);
-      if (read_in_chunks(client_fds[i], &msg) == 1) {
+      if (read_in_chunks(client_fds[i], &msg) == 1 || !p->connected) {
         if (p != NULL) {
           p->connected = 0;
         }

@@ -427,5 +427,6 @@ int main(int argc, char* argv[]) {
   }
 
   close(fd);
+  game_free_all_players(&st);
   return 0;
 }
