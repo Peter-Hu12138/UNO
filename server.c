@@ -212,6 +212,8 @@ int main(int argc, char* argv[]) {
             continue;
           }
 
+          memset(p, 0, sizeof(*p));
+
           p->sock_fd = cfd;
           p->id = slot;
           char id_str[16];
