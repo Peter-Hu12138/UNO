@@ -7,8 +7,8 @@
 #include <stdio.h>
 #include <unistd.h>
 
-int buffered_write(int fd, void * buffer, int size){
-	char * buf = (char *) buffer;
+int buffered_write(int fd, const void * buffer, int size){
+	const void * buf = buffer;
 	while (size > 0) {
 		int ret = write(fd, buf, size);
 		if (ret < 0) {
@@ -45,7 +45,7 @@ int buffered_read(int fd, void * buffer, int size){
 
 int write_in_chunks(int fd, const char *arg, ...){
 	int len = 0;
-	char * arg_ptr = arg;
+	const char * arg_ptr = arg;
 	fprintf(stderr, "DEBUG write_in_chunks: starting\n");
 
 	va_list ap;
