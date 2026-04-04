@@ -25,9 +25,9 @@ static int listen_fd = -1;
 
 /**
  * @brief find a player by local fd
- * 
- * @param fd 
- * @return Player* 
+ *
+ * @param fd
+ * @return Player*
  */
 static Player* find_player_by_fd(int fd) {
   if (g.players == NULL || g.player_count <= 0) {
@@ -46,9 +46,9 @@ static Player* find_player_by_fd(int fd) {
 
 /**
  * @brief Process a command from a client.
- * 
- * @param p 
- * @param msg 
+ *
+ * @param p
+ * @param msg
  */
 static void process_client_command(Player* p, const read_data* msg) {
   if (p == NULL || msg == NULL || msg->num_chunks <= 0 || msg->data == NULL || msg->data[0] == NULL) {
@@ -238,7 +238,7 @@ int main(int argc, char* argv[]) {
       // on read error - or timed out
       // or if player is already disconneced
       Player* p = find_player_by_fd(client_fds[i]);
-      if (read_in_chunks(client_fds[i], &msg) == 1 || !p->connected) {
+      if (p == NULL || read_in_chunks(client_fds[i], &msg) == 1 || !p->connected) {
         if (p != NULL) {
           p->connected = 0;
         }

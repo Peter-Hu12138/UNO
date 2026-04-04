@@ -190,13 +190,16 @@ static void send_action(GameState* g, const char* fmt, ...) {
   * reject if name already exists
   */
 void handle_msg_join(GameState* g, Player* player, const read_data* msg) {
+  if (msg->num_chunks < 2) {
+    return;
+  }
   if (find_player_by_name(g, msg->data[1]) != NULL) {
     send_error_fd(player, "Name already exists");
     player->connected = 0;
     return;
   }
   strncpy(player->name, msg->data[1], MAX_NAME);
-  player->name[MAX_NAME - 1] = '\0';
+  player->name[MAX_NAME] = '\0';
   char out[OUT_MSG_SIZE];
   snprintf(out, sizeof(out), "Player %s joined successfully", player->name);
   broadcast_to_all(g, "INFO", out);
@@ -264,6 +267,12 @@ void handle_msg_play(GameState* g, Player* player, const read_data* msg) {
   uint8_t wild_color = COLOR_RED;
   if (msg->num_chunks >= 3) {
     wild_color = parse_color_or_default(msg->data[2], COLOR_RED);
+  }
+
+  // fix reading invalid index undefined bahaviour
+  if (card_idx < 0 || card_idx >= player->hand_count) {
+    send_error_fd(player, "Invalid card index");
+    return;
   }
 
   Card card = player->hand[card_idx];
