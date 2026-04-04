@@ -131,7 +131,8 @@ static Command parse_play(char* rest) {
 
   /* Extract index token */
   // split by whitespace, space or tab
-  char* idx_str = strtok(rest, " \t");
+  char* saveptr = NULL;
+  char* idx_str = strtok_r(rest, " \t", &saveptr);
   if (!idx_str) {
     return make_error("Usage: play <index> [color]");
   }
@@ -144,7 +145,7 @@ static Command parse_play(char* rest) {
   strncpy(cmd.card_index_str, idx_str, sizeof(cmd.card_index_str) - 1);
 
   /* Optional color token */
-  char* color_str = strtok(NULL, " \t");
+  char* color_str = strtok_r(NULL, " \t", &saveptr);
   if (color_str) {
     if (parse_color_str(color_str) < 0) {
       return make_error("Color must be: red(r), blue(b), green(g), or yellow(y).");
@@ -181,7 +182,7 @@ static Command parse_with_arg(CmdType type, char* rest, const char* usage) {
  /**
   * @brief Parse a raw input line into a Command struct.
   *
-  * The input string may be modified (strtok).
+  * The input string may be modified.
   *
   * Returns a filled Command; check cmd.type for result.
   *
@@ -197,11 +198,15 @@ Command parse_command(char* line) {
   if (*line == '\0') return make_simple(CMD_NONE);
 
   /* Split into command word + rest */
-  char* cmd_word = strtok(line, " \t");
+  char* saveptr = NULL;
+  char* cmd_word = strtok_r(line, " \t", &saveptr);
   if (!cmd_word) return make_simple(CMD_NONE);
 
-  /* rest = everything after the first token (may be NULL) */
-  char* rest = strtok(NULL, "");
+  /* rest = remaining content after first token (may be NULL) */
+  char* rest = skip_spaces(saveptr);
+  if (rest && *rest == '\0') {
+    rest = NULL;
+  }
 
   if (eq_nocase(cmd_word, "play"))
     return parse_play(rest);

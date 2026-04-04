@@ -388,6 +388,7 @@ int main(int argc, char* argv[]) {
     /* ── User keyboard input ─────────────────── */
     if (FD_ISSET(STDIN_FILENO, &rset)) {
       char line[MAX_PAYLOAD];
+      char line_for_history[MAX_PAYLOAD];
       if (!fgets(line, sizeof(line), stdin)) {
         print_event("[System]", FG_GRAY, "Input closed. Exiting.");
         connected = 0;
@@ -403,6 +404,10 @@ int main(int argc, char* argv[]) {
         line[sizeof(line) - 1] = '\0';
       }
 
+      // Save exactly what is parsed/sent, including recalled commands.
+      strncpy(line_for_history, line, sizeof(line_for_history) - 1);
+      line_for_history[sizeof(line_for_history) - 1] = '\0';
+
       Command cmd = parse_command(line);
       if (send_command(fd, cmd) == 1) {
         print_event("[System]", FG_GRAY, "Failed to send command.");
@@ -412,7 +417,7 @@ int main(int argc, char* argv[]) {
 
       // save a valid command
       if (cmd.type != CMD_NONE && cmd.type != CMD_INVALID) {
-        strncpy(last_cmd_str, line, sizeof(last_cmd_str) - 1);
+        strncpy(last_cmd_str, line_for_history, sizeof(last_cmd_str) - 1);
         last_cmd_str[sizeof(last_cmd_str) - 1] = '\0';
       }
     }
