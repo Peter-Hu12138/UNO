@@ -510,7 +510,7 @@ void game_advance_turn(GameState* g) {
       steps = 2;
     }
     else if (top.value == CARD_DRAW2 || top.value == CARD_WILD4) {
-      Player* victim = current->next;
+      Player* victim = g->direction == 1 ? current->next : current->prev;
       int penalty = (top.value == CARD_DRAW2) ? 2 : 4;
       if (victim != NULL) {
         game_deal_cards(g, victim->id, penalty);
@@ -523,7 +523,7 @@ void game_advance_turn(GameState* g) {
 
   Player* next = current;
   for (int i = 0; i < steps; i++) {
-    next = next->next;
+    next = g->direction == 1 ? next->next : next->prev;
   }
 
   if (next != NULL) {

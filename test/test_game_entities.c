@@ -245,7 +245,33 @@ int main(void) {
 	check("P1 pass moves turn to P2", g.current_player_id == 2);
 	check("effect not re-applied to P2", p2->hand_count == p2_after_effect);
 	print_state("11) after P1 pass", &g);
+	
+  
+  printf("\n===== reverse =====\n");
+	g.discard_top_idx = 0;
+	g.discard_pile[0] = (Card){ COLOR_BLUE, CARD_REVERSE, COLOR_BLUE };
+	g.current_player_id = 1;
+	g.direction = 1;
+	g.effect_applied = 0;
 
+	set_hand(p1, (Card[]){ { COLOR_BLUE, CARD_REVERSE, COLOR_BLUE } }, 1);
+	set_hand(p2, (Card[]){ { COLOR_BLUE, CARD_9, COLOR_BLUE } }, 1);
+	set_hand(p3, (Card[]){ { COLOR_BLUE, CARD_2, COLOR_BLUE } }, 1);
+	print_state("8) before REVERSE effect turn", &g);
+  
+	p2_before = p2->hand_count;
+	game_advance_turn(&g);
+	check("REVERSE flips direction", g.direction == -1);
+	check("turn advanced to previous player P3", g.current_player_id == 3);
+	check("REVERSE does not force draws", p2->hand_count == p2_before);
+	check("REVERSE effect marked applied", g.effect_applied == 1);
+	print_state("9) after REVERSE effect applied", &g);
+
+	game_advance_turn(&g);
+	check("REVERSE not re-applied next turn", g.direction == -1);
+	check("with reversed direction P3 -> P2", g.current_player_id == 2);
+  
+	print_state("8) after REVERSE effect turn", &g);
   
 
 	printf("\n===== Disconnecting test =====\n");

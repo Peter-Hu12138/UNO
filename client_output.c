@@ -12,7 +12,7 @@
 /**
  * @brief print >
  */
-static void print_prompt() {
+static void print_prompt(void) {
   printf("%s>%s ", FG_CYAN, RESET);
   fflush(stdout);
 }
