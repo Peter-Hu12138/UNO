@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <errno.h>
 
 /*
  * fd: file descriptor to write into
@@ -20,7 +21,7 @@
  * 
 */
 int buffered_write(int fd, const void * buffer, int size){
-	const void * buf = buffer;
+	const char * buf = (const char *) buffer;
 	struct timeval timeout;
 	timeout.tv_sec = 5;  // 5 seconds
 	timeout.tv_usec = 0;
@@ -30,6 +31,9 @@ int buffered_write(int fd, const void * buffer, int size){
 	while (size > 0) {
 		int ret = write(fd, buf, size);
 		if (ret < 0) {
+			if (errno == EINTR) {
+				continue; // interuptted by signal, retry
+			}
 			perror("write");
 			return -1;
 		}
@@ -62,17 +66,32 @@ int buffered_write(int fd, const void * buffer, int size){
  */
 int buffered_read(int fd, void * buffer, int size){
 	char * buf = (char *) buffer;
+	struct timeval timeout;
+	timeout.tv_sec = 5;  // 5 seconds
+	timeout.tv_usec = 0;
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+		perror("setsockopt");
+	}
 	while (size > 0) {
 		int ret = read(fd, buf, size);
 		if (ret < 0) {
+			if (errno == EINTR) {
+				continue; // interuptted by signal, retry
+			}
 			perror("read");
-			exit(1);
+			return -1;
 		}
 		else if(ret == 0) {
 			return 1;
 		}
 		size -= ret;
 		buf += ret;
+	}
+
+	timeout.tv_sec = 0;  // 5 seconds
+	timeout.tv_usec = 0;
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+		perror("setsockopt");
 	}
 	return 0;
 }
@@ -141,7 +160,7 @@ int write_in_chunks(int fd, const char *arg, ...){
  * 
  * This function reads args into data according to our protocol expalined in communication.h.
  * 
- * Returns 1 if fd is closed, -1 if timeouts
+ * Returns 1 if fd is closed, -1 if timeouts or failure to allocate memory
  * Return 0 on success.
  * 
  */
@@ -157,6 +176,9 @@ int read_in_chunks(int fd, read_data* data) {
 	fprintf(stderr, "DEBUG read_in_chunks: len=%d (network order), len_h=%d (host order)\n", len, len_h);
 	data->num_chunks = len_h;
 	data->data = malloc(sizeof(char *) * len_h);
+	if (data->data == NULL) {
+		return -1;
+	}
 	for (int i = 0; i < len_h; i++) {
 		int chunk_len;
 		if ((r = buffered_read(fd, &chunk_len, sizeof(int))) != 0) {
@@ -170,6 +192,7 @@ int read_in_chunks(int fd, read_data* data) {
 		int chunk_len_h = ntohl(chunk_len);
 		fprintf(stderr, "DEBUG read_in_chunks: chunk %d len=%d\n", i, chunk_len_h);
 		char * chunk = malloc(sizeof(char) * chunk_len_h);
+		if (chunk == NULL) { return -1; }
 		if (((r = buffered_read(fd, chunk, chunk_len_h)) != 0)) {
 			free(chunk);
             		for (int j = 0; j < i; j++) {
