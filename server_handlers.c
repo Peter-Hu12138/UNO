@@ -227,7 +227,7 @@ void handle_msg_start(GameState* g, Player* player, const read_data* msg) {
   }
 
   game_start(g, g->players, g->player_count);
-  broadcast_to_all(g, "INFO", "Game started");
+  broadcast_to_all(g, "ACTION", "Game started");
 }
 
 /**

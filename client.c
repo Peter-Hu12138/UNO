@@ -101,7 +101,6 @@ static int string_to_cards_local(const char* s, Card* out, int max_cards) {
  * - ID
  * - STATE_UPDATE GAME
  * - STATE_UPDATE PLAYER
- * - GAME_STATE
  * - ERROR
  * - INFO
  * - ACTION
@@ -221,12 +220,6 @@ static void handle_server_message(const read_data* msg, int fd) {
         }
       }
       return;
-    }
-  }
-  if (strcmp(type, "GAME_STATE") == 0) {
-    Player* me = game_find_player(&st, id);
-    if (me != NULL) {
-      print_status(me, &st);
     }
   }
   if (strcmp(type, "ERROR") == 0) {
