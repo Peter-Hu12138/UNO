@@ -6,14 +6,36 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/time.h>
+#include <errno.h>
 
-int buffered_write(int fd, void * buffer, int size){
-	char * buf = (char *) buffer;
+/*
+ * fd: file descriptor to write into
+ * buffer: a pointer, content of which is written
+ * size: size bytes will be written
+ * 
+ * This function always tries to write size bytes to fd.
+ * A timeout of 5s is set to prevent forever dead lock.
+ * Return 1 if the socket is closed, return -1 if timeouts.
+ * Return 0 on success.
+ * 
+*/
+int buffered_write(int fd, const void * buffer, int size){
+	const char * buf = (const char *) buffer;
+	struct timeval timeout;
+	timeout.tv_sec = 5;  // 5 seconds
+	timeout.tv_usec = 0;
+	if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0) {
+		perror("setsockopt");
+	}
 	while (size > 0) {
 		int ret = write(fd, buf, size);
 		if (ret < 0) {
+			if (errno == EINTR) {
+				continue; // interuptted by signal, retry
+			}
 			perror("write");
-			exit(1);
+			return -1;
 		}
 		else if (ret == 0) {
 			return 1;
@@ -21,16 +43,43 @@ int buffered_write(int fd, void * buffer, int size){
 		size -= ret;
 		buf += ret;
 	}
+
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 0;
+
+	if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0) {
+		perror("setsockopt failed");
+	}
 	return 0;
 }
 
+/*
+ * fd: file descriptor to read from
+ * buffer: a pointer, content of read is written to buffer
+ * size: size bytes will be read
+ * 
+ * This function always tries to read size bytes to fd.
+ * A timeout of 5s is set to prevent forever dead lock.
+ * Return 1 if the socket is closed, return -1 if timeouts.
+ * Return 0 on success.
+ * 
+ */
 int buffered_read(int fd, void * buffer, int size){
 	char * buf = (char *) buffer;
+	struct timeval timeout;
+	timeout.tv_sec = 5;  // 5 seconds
+	timeout.tv_usec = 0;
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+		perror("setsockopt");
+	}
 	while (size > 0) {
 		int ret = read(fd, buf, size);
 		if (ret < 0) {
+			if (errno == EINTR) {
+				continue; // interuptted by signal, retry
+			}
 			perror("read");
-			exit(1);
+			return -1;
 		}
 		else if(ret == 0) {
 			return 1;
@@ -38,14 +87,30 @@ int buffered_read(int fd, void * buffer, int size){
 		size -= ret;
 		buf += ret;
 	}
+
+	timeout.tv_sec = 0;  // 5 seconds
+	timeout.tv_usec = 0;
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+		perror("setsockopt");
+	}
 	return 0;
 }
 
 
 
+/*
+ * fd: file descriptor to write into
+ * var args: null terminated pointers, contents of which are written to fd
+ * size: size bytes will be written
+ * 
+ * This function writes var args to fd according to our protocol communication.h.
+ * 
+ * Returns 1 if fd is closed, -1 if timeouts
+ * Return 0 on success.
+ */
 int write_in_chunks(int fd, const char *arg, ...){
 	int len = 0;
-	char * arg_ptr = arg;
+	const char * arg_ptr = arg;
 	fprintf(stderr, "DEBUG write_in_chunks: starting\n");
 
 	va_list ap;
@@ -58,8 +123,9 @@ int write_in_chunks(int fd, const char *arg, ...){
 	
 	int len_n = htonl(len);
 	fprintf(stderr, "DEBUG write_in_chunks: num_chunks=%d\n", len);
-	if (buffered_write(fd, &len_n, sizeof(int)) == 1) {
-		return 1;
+	int r;
+	if ((r = buffered_write(fd, &len_n, sizeof(int))) != 0) {
+		return r;
 	}
 	fprintf(stderr, "DEBUG write_in_chunks: wrote num_chunks, starting chunk loop\n");
 	va_start(ap, arg);
@@ -70,16 +136,16 @@ int write_in_chunks(int fd, const char *arg, ...){
 		fprintf(stderr, "DEBUG write_in_chunks: chunk %d, len=%d, data=%s\n", i, chunk_len, arg_ptr);
 		int chunk_len_n = htonl(chunk_len);
 		fprintf(stderr, "DEBUG child: before buffered_write chunk_len_n\n");
-		if (buffered_write(fd, &chunk_len_n, sizeof(int)) == 1) {
+		if (( r = buffered_write(fd, &chunk_len_n, sizeof(int))) != 0) {
 			va_end(ap);
 			fprintf(stderr, "DEBUG child: buffered_write chunk_len returned 1\n");
-			return 1;
+			return r;
 		}
 		fprintf(stderr, "DEBUG child: buffered_write chunk_len succeeded\n");
-		if (buffered_write(fd, arg_ptr, chunk_len) == 1) {
+		if ((r = buffered_write(fd, arg_ptr, chunk_len)) != 0) {
 			va_end(ap);
 			fprintf(stderr, "DEBUG child: buffered_write chunk_data returned 1\n");
-			return 1;
+			return r;
 		}
 		fprintf(stderr, "DEBUG child: buffered_write chunk_data succeeded\n");
 	}
@@ -87,20 +153,35 @@ int write_in_chunks(int fd, const char *arg, ...){
 	return 0;
 }
 
+
+/*
+ * fd: file descriptor to read from.
+ * data: pointer to read_data, to which read data is written.
+ * 
+ * This function reads args into data according to our protocol expalined in communication.h.
+ * 
+ * Returns 1 if fd is closed, -1 if timeouts or failure to allocate memory
+ * Return 0 on success.
+ * 
+ */
 int read_in_chunks(int fd, read_data* data) {
 	int len;
 	fprintf(stderr, "DEBUG read_in_chunks: starting\n");
-	if (buffered_read(fd, &len, sizeof(int)) == 1) {
+	int r;
+	if ((r = buffered_read(fd, &len, sizeof(int))) != 0) {
 		fprintf(stderr, "DEBUG read_in_chunks: buffered_read returned 1 (EOF or error) on first read\n");
-		return 1;
+		return r;
 	}
 	int len_h = ntohl(len);
 	fprintf(stderr, "DEBUG read_in_chunks: len=%d (network order), len_h=%d (host order)\n", len, len_h);
 	data->num_chunks = len_h;
 	data->data = malloc(sizeof(char *) * len_h);
+	if (data->data == NULL) {
+		return -1;
+	}
 	for (int i = 0; i < len_h; i++) {
 		int chunk_len;
-		if (buffered_read(fd, &chunk_len, sizeof(int)) == 1) {
+		if ((r = buffered_read(fd, &chunk_len, sizeof(int))) != 0) {
 			for (int j = 0; j < i; j++) {
                 		free(data->data[j]);
             		}
@@ -111,7 +192,8 @@ int read_in_chunks(int fd, read_data* data) {
 		int chunk_len_h = ntohl(chunk_len);
 		fprintf(stderr, "DEBUG read_in_chunks: chunk %d len=%d\n", i, chunk_len_h);
 		char * chunk = malloc(sizeof(char) * chunk_len_h);
-		if (buffered_read(fd, chunk, chunk_len_h) == 1) {
+		if (chunk == NULL) { return -1; }
+		if (((r = buffered_read(fd, chunk, chunk_len_h)) != 0)) {
 			free(chunk);
             		for (int j = 0; j < i; j++) {
                 		free(data->data[j]);
@@ -122,4 +204,22 @@ int read_in_chunks(int fd, read_data* data) {
 		data->data[i] = chunk;
 	}
 	return 0;
+}
+
+/**
+ * @brief Free the memory allocated for read_data
+ * 
+ * @param data 
+ */
+void free_read_data(read_data* data) {
+  if (data == NULL || data->data == NULL) {
+    return;
+  }
+
+  for (int i = 0; i < data->num_chunks; i++) {
+    free(data->data[i]);
+  }
+  free(data->data);
+  data->data = NULL;
+  data->num_chunks = 0;
 }

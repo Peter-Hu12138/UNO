@@ -1,4 +1,5 @@
 /*
+<<<<<<< HEAD
  * server.c  --  UNO Game Server
  *
  * Usage:  ./server [port] [num_players]
@@ -9,6 +10,13 @@
  * The server maintains all authoritative game state and
  * validates every action before broadcasting updates.
  */
+=======
+ * server.c  --  UNO Game Server  (main loop / glue)
+ *
+ * Usage:  ./server [port]
+*/
+
+>>>>>>> un_vibe
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,6 +28,7 @@
 #include <time.h>
 #include <signal.h>
 #include <errno.h>
+<<<<<<< HEAD
 #include <server.h>
 #include "protocol.h"
 
@@ -174,3 +183,290 @@ int main(int argc, char *argv[])
     printf("[Server] Shutdown.\n");
     return 0;
 }
+=======
+
+#include "communication.h"
+#include "game_entities.h"
+#include "server_handlers.h"
+
+static GameState g;
+static int listen_fd = -1;
+
+/**
+ * @brief find a player by local fd
+ * 
+ * @param fd 
+ * @return Player* 
+ */
+static Player* find_player_by_fd(int fd) {
+  if (g.players == NULL || g.player_count <= 0) {
+    return NULL;
+  }
+
+  Player* p = g.players;
+  for (int i = 0; i < g.player_count; i++) {
+    if (p->sock_fd == fd) {
+      return p;
+    }
+    p = p->next;
+  }
+  return NULL;
+}
+
+/**
+ * @brief Process a command from a client.
+ * 
+ * @param p 
+ * @param msg 
+ */
+static void process_client_command(Player* p, const read_data* msg) {
+  if (p == NULL || msg == NULL || msg->num_chunks <= 0 || msg->data == NULL || msg->data[0] == NULL) {
+    if (p != NULL) {
+      send_error_fd(p, "Invalid command packet");
+    }
+    return;
+  }
+
+  const char* cmd = msg->data[0];
+  if (strcmp(cmd, "MSG_JOIN") == 0) {
+    handle_msg_join(&g, p, msg);
+    return;
+  }
+  /*
+  for each client command
+  CMD_START
+  CMD_PLAY
+  CMD_DRAW
+  CMD_PASS
+  CMD_UNO
+  CMD_CALLOUT
+  CMD_CHAT
+  CMD_STATUS
+  */
+  if (strcmp(cmd, "MSG_START") == 0) {
+    handle_msg_start(&g, p, msg);
+  }
+  else if (strcmp(cmd, "MSG_PLAY") == 0) {
+    handle_msg_play(&g, p, msg);
+  }
+  else if (strcmp(cmd, "MSG_DRAW") == 0) {
+    handle_msg_draw(&g, p, msg);
+  }
+  else if (strcmp(cmd, "MSG_PASS") == 0) {
+    handle_msg_pass(&g, p, msg);
+  }
+  else if (strcmp(cmd, "MSG_UNO") == 0) {
+    handle_msg_uno(&g, p, msg);
+  }
+  else if (strcmp(cmd, "MSG_CALLOUT") == 0) {
+    handle_msg_callout(&g, p, msg);
+  }
+  else if (strcmp(cmd, "MSG_CHAT") == 0) {
+    handle_msg_chat_send(&g, p, msg);
+  }
+  else if (strcmp(cmd, "MSG_STATUS") == 0) {
+    handle_msg_status(&g, p, msg);
+  }
+  else {
+    send_error_fd(p, "Unknown command");
+  }
+}
+
+
+int main(int argc, char* argv[]) {
+  // Connection table used by select
+  int client_fds[MAX_PLAYERS];
+  for (int i = 0; i < MAX_PLAYERS; i++) {
+    client_fds[i] = -1;
+  }
+
+  // Parse CLI args. 
+  int port = DEFAULT_PORT;
+  if (argc > 1) {
+    port = atoi(argv[1]);
+  }
+
+  // Process initialization. 
+  srand((unsigned)time(NULL));
+
+  // ignoring SIGPIPE prevents a single failed write from crashing the server
+  signal(SIGPIPE, SIG_IGN);
+
+  game_init(&g);
+
+  // Socket setup. 
+  listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+  if (listen_fd < 0) {
+    perror("socket");
+    return 1;
+  }
+
+  int opt = 1;
+  if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+    perror("setsockopt");
+    close(listen_fd);
+    return 1;
+  }
+
+  struct sockaddr_in addr;
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = INADDR_ANY;
+  addr.sin_port = htons((uint16_t)port);
+
+  if (bind(listen_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+    perror("bind");
+    close(listen_fd);
+    return 1;
+  }
+  if (listen(listen_fd, 5) < 0) {
+    perror("listen");
+    close(listen_fd);
+    return 1;
+  }
+
+  printf("=== UNO Server on port %d ready ===\n", port);
+
+  // Main event loop: accept + read + dispatch. 
+  while (!g.game_over) {
+    fd_set rset;
+    FD_ZERO(&rset);
+    FD_SET(listen_fd, &rset);
+    int maxfd = listen_fd;
+
+    // add all the players fds to the set to listen
+    for (int i = 0; i < MAX_PLAYERS; i++) {
+      if (client_fds[i] >= 0) {
+        FD_SET(client_fds[i], &rset);
+        if (client_fds[i] > maxfd) {
+          maxfd = client_fds[i];
+        }
+      }
+    }
+
+    if (select(maxfd + 1, &rset, NULL, NULL, NULL) < 0) {
+      // this error happens if some signal arises during a syscall
+      if (errno == EINTR) {
+        continue;
+      }
+      perror("select");
+      break;
+    }
+
+    // on client joined
+    if (FD_ISSET(listen_fd, &rset)) {
+      struct sockaddr_in ca;
+      socklen_t cl = sizeof(ca);
+      int cfd = accept(listen_fd, (struct sockaddr*)&ca, &cl);
+      if (cfd >= 0) {
+        // find a free spot in the client fds array
+        int slot = -1;
+        for (int i = 0; i < MAX_PLAYERS; i++) {
+          if (client_fds[i] < 0) {
+            slot = i;
+            break;
+          }
+        }
+
+        if (slot < 0 || g.game_started) {
+          (void)write_in_chunks(cfd, "ERROR", "Game is full / already started", NULL);
+          close(cfd);
+        }
+        else {
+          Player* p = (Player*)malloc(sizeof(Player));
+
+          if (p == NULL) {
+            (void)write_in_chunks(cfd, "ERROR", "Server memory error", NULL);
+            close(cfd);
+            continue;
+          }
+
+          memset(p, 0, sizeof(*p));
+
+          p->sock_fd = cfd;
+          p->id = slot;
+          char id_str[16];
+          snprintf(id_str, sizeof(id_str), "%d", slot);
+          (void)write_in_chunks(cfd, "ID", id_str, NULL);
+          p->connected = 1;
+          game_append_player(&g, p);
+
+          client_fds[slot] = cfd;
+          broadcast_to_all(&g, "INFO", "A player is joining the server");
+        }
+      }
+    }
+
+    // Read chunked messages from joined clients. 
+    for (int i = 0; i < MAX_PLAYERS; i++) {
+      if (client_fds[i] < 0 || !FD_ISSET(client_fds[i], &rset)) {
+        continue;
+      }
+
+      read_data msg = { 0 };
+      // on read error - or timed out
+      // or if player is already disconneced
+      Player* p = find_player_by_fd(client_fds[i]);
+      if (read_in_chunks(client_fds[i], &msg) == 1 || !p->connected) {
+        if (p != NULL) {
+          p->connected = 0;
+        }
+        close(client_fds[i]);
+        client_fds[i] = -1;
+        free_read_data(&msg);
+
+        game_remove_disconnected_players(&g);
+        broadcast_to_all(&g, "INFO", "A player left the server");
+
+        if (g.player_count < 2) {
+          broadcast_to_all(&g, "INFO", "not enough players");
+          g.game_over = 1;
+        }
+        continue;
+      }
+
+      process_client_command(p, &msg);
+
+      // if player is disconnected by unsuccessfully join
+      // or erros in the handling of the command
+      if (!p->connected) {
+        close(client_fds[i]);
+        client_fds[i] = -1;
+        game_remove_disconnected_players(&g);
+      }
+      free_read_data(&msg);
+    }
+  }
+
+  // send who's the winner
+  Player* p = g.players;
+  int has_winner = 0;
+  for (int i = 0; i < g.player_count; i++) {
+    if (p->hand_count == 0) {
+      has_winner = 1;
+      char out[MAX_NAME + 32];
+      snprintf(out, sizeof(out), "Game over, winner: %s", p->name);
+      broadcast_to_all(&g, "INFO", out);
+      break;
+    }
+    p = p->next;
+  }
+  if (!has_winner) {
+    broadcast_to_all(&g, "INFO", "Game over, there is no winner");
+  }
+
+  // Cleanup open sockets. 
+  for (int i = 0; i < MAX_PLAYERS; i++) {
+    if (client_fds[i] >= 0) {
+      close(client_fds[i]);
+    }
+  }
+  if (listen_fd >= 0) {
+    close(listen_fd);
+  }
+
+  game_free_all_players(&g);
+  printf("[Server] Shutdown.\n");
+  return 0;
+}
+>>>>>>> un_vibe
