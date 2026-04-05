@@ -298,7 +298,7 @@ void handle_msg_play(GameState* g, Player* player, const read_data* msg) {
     return;
   }
 
-  send_action(g, "%s played card %s %s, %s", player->name, color_str, val_str, g->game_over ? "that was the last card!" : "");
+  send_action(g, "%s played card %s %s %s", player->name, color_str, val_str, g->game_over ? ", that was the last card!" : "");
 }
 
 /**

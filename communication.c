@@ -88,7 +88,7 @@ int buffered_read(int fd, void * buffer, int size){
 		buf += ret;
 	}
 
-	timeout.tv_sec = 0;  // 5 seconds
+	timeout.tv_sec = 0; 
 	timeout.tv_usec = 0;
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
 		perror("setsockopt");
