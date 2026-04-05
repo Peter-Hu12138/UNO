@@ -205,7 +205,7 @@ static void handle_server_message(const read_data* msg, int fd) {
       if (hand_count < 0) {
         hand_count = 0;
       }
-      if (hand_count > parsed_hand) {
+      if (parsed_hand != 0 && hand_count > parsed_hand) {
         hand_count = parsed_hand;
       }
       p->hand_count = hand_count;

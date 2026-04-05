@@ -533,7 +533,13 @@ void handle_msg_status(GameState* g, Player* player, const read_data* msg) {
     (void)snprintf(pid, sizeof(pid), "%d", p->id);
     (void)snprintf(hand_count, sizeof(hand_count), "%d", p->hand_count);
 
-    char* hand_cards = cards_to_string(p->hand, p->hand_count);
+    char* hand_cards;
+    if (p->id == player->id) {
+      hand_cards = cards_to_string(p->hand, p->hand_count);
+    } else {
+      hand_cards = cards_to_string(NULL, 0);
+    }
+
     if (hand_cards == NULL) {
       send_error_fd(player, "Failed to build player payload");
       break;

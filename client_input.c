@@ -129,6 +129,10 @@ static Command parse_play(char* rest) {
   memset(&cmd, 0, sizeof(cmd));
   cmd.type = CMD_PLAY;
 
+  if (rest == NULL || *rest == '\0') {
+    return make_error("Usage: play <index> [color]");
+  }
+
   /* Extract index token */
   // split by whitespace, space or tab
   char* saveptr = NULL;
