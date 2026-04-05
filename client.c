@@ -234,7 +234,10 @@ static void handle_server_message(const read_data* msg, int fd) {
     print_event("[Action]", FG_GREEN, text);
 
     // **** TODO: test auto refresing ***
-    write_in_chunks(fd, "MSG_STATUS", NULL);
+    int game_over = text[strlen(text) - 1] == '!' ? 1 : 0;
+    if (!game_over) {
+      write_in_chunks(fd, "MSG_STATUS", NULL);
+    }
 
     return;
   }
