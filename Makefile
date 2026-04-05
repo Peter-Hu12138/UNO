@@ -2,6 +2,10 @@ CC = gcc
 CFLAGS = -Wall -Wextra -g -O0 -fno-omit-frame-pointer -I.
 LDFLAGS =
 
+ifeq ($(TEST_HAND),1)
+CFLAGS += -DTEST_HAND
+endif
+
 .PHONY: all clean test
 
 all: client server test_comm test_game_ent

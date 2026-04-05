@@ -556,6 +556,32 @@ void game_start(GameState* g, Player* players, int player_cnt) {
 
   g->current_player_id = first_player->id;
 
+#ifdef TEST_HAND
+  Player* p1 = first_player;
+  Player* p2 = p1->next;
+  Player* p3 = p2->next;
+
+  for (int i = 0; i < 3; i++) {
+    Player* p = (i == 0) ? p1 : (i == 1) ? p2 : p3;
+    p->hand_count = 0;
+    p->called_uno = 0;
+    p->drawn_this_turn = 0;
+  }
+
+  p1->hand[p1->hand_count++] = (Card){ COLOR_RED, CARD_1, COLOR_RED };
+  p1->hand[p1->hand_count++] = (Card){ COLOR_BLUE, CARD_REVERSE, COLOR_BLUE };
+
+  p2->hand[p2->hand_count++] = (Card){ COLOR_WILD, CARD_WILD4, COLOR_RED };
+  p2->hand[p2->hand_count++] = (Card){ COLOR_BLUE, CARD_1, COLOR_BLUE };
+
+  p3->hand[p3->hand_count++] = (Card){ COLOR_GREEN, CARD_2, COLOR_GREEN };
+  p3->hand[p3->hand_count++] = (Card){ COLOR_BLUE, CARD_SKIP, COLOR_BLUE };
+
+  discard_push(g, (Card){ COLOR_RED, CARD_0, COLOR_RED });
+  g->effect_applied = 1;
+  return;
+#endif
+
   // deal initial hand
   Player* p = g->players;
   for (int n = 0; n < g->player_count; n++) {
